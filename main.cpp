@@ -1,15 +1,12 @@
-#include "external/glfw/src/internal.h"
 #include "glad/glad.h"
 #include "glm/ext/matrix_clip_space.hpp"
 #include "glm/ext/matrix_float4x4.hpp"
 #include "glm/ext/matrix_transform.hpp"
 #include "glm/ext/vector_float3.hpp"
-#include "glm/glm.hpp"
+#include "include/mesh.hpp"
 #include "include/shader.hpp"
 #include "include/window.hpp"
-#include "utility.hpp"
 #include <GL/gl.h>
-#include <cstdint>
 #include <iostream>
 #include <memory>
 
@@ -45,30 +42,11 @@ int main() {
     default_shader.set_uniform_matrix4("transform", transform);
 
     // init render object
-    glm::vec3 vertices[6] = {{0.0f, 0.5f, 0.0f},   {1.0f, 0.0f, 0.0f},
-                             {-0.5f, -0.5f, 0.0f}, {0.0f, 1.0f, 0.0f},
-                             {0.5f, -0.5f, 0.0f},  {0.0f, 0.0f, 1.0f}};
+    std::vector<Vertex> vertices = {{{0.0f, 0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}},
+                                    {{-0.5f, -0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}},
+                                    {{0.5f, -0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}}};
 
-    GLuint vertex_array;
-    GLuint vertex_buffer;
-
-    glGenVertexArrays(1, &vertex_array);
-    glBindVertexArray(vertex_array);
-
-    glGenBuffers(1, &vertex_buffer);
-    glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
-
-    glVertexAttribPointer(0, 3, GL_FLOAT, 0, 2 * sizeof(glm::vec3), (void*)0);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(1, 3, GL_FLOAT, 0, 2 * sizeof(glm::vec3),
-                          (void*)sizeof(glm::vec3));
-    gl_check_error();
-    glEnableVertexAttribArray(1);
-
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-
-    glBindVertexArray(0);
+    Mesh mesh(vertices);
 
     while (window.is_open()) {
         window.poll_events();
@@ -80,7 +58,7 @@ int main() {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         glUseProgram(default_shader.get_id());
-        glBindVertexArray(vertex_array);
+        glBindVertexArray(mesh.get_vertex_array_id());
         glDrawArrays(GL_TRIANGLE_FAN, 0, 3);
         glBindVertexArray(0);
         glUseProgram(0);
