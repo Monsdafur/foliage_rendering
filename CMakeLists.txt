@@ -23,6 +23,7 @@ add_library(foliage_render STATIC
             src/shader.cpp
             src/texture.cpp
             src/window.cpp
+            src/renderer.cpp
             src/mesh.cpp
             )
 target_include_directories(foliage_render PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)

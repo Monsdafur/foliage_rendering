@@ -140,7 +140,7 @@ void Shader::set_uniform_matrix2(const std::string& name,
                                  const glm::mat2& value) {
     GLuint location = glGetUniformLocation(m_id, name.c_str());
     glUseProgram(m_id);
-    glUniformMatrix2fv(location, 1, GL_TRUE, glm::value_ptr(value));
+    glUniformMatrix2fv(location, 1, GL_FALSE, glm::value_ptr(value));
     glUseProgram(0);
 }
 
@@ -148,7 +148,7 @@ void Shader::set_uniform_matrix3(const std::string& name,
                                  const glm::mat3& value) {
     GLuint location = glGetUniformLocation(m_id, name.c_str());
     glUseProgram(m_id);
-    glUniformMatrix3fv(location, 1, GL_TRUE, glm::value_ptr(value));
+    glUniformMatrix3fv(location, 1, GL_FALSE, glm::value_ptr(value));
     glUseProgram(0);
 }
 
@@ -156,7 +156,7 @@ void Shader::set_uniform_matrix4(const std::string& name,
                                  const glm::mat4& value) {
     GLuint location = glGetUniformLocation(m_id, name.c_str());
     glUseProgram(m_id);
-    glUniformMatrix4fv(location, 1, GL_TRUE, glm::value_ptr(value));
+    glUniformMatrix4fv(location, 1, GL_FALSE, glm::value_ptr(value));
     glUseProgram(0);
 }
 
