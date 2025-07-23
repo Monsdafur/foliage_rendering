@@ -8,7 +8,8 @@ class Camera {
   public:
     Camera() = default;
 
-    Camera(const glm::vec3& position, float fov, float aspect_ratio);
+    Camera(const glm::vec3& position, float fov, float aspect_ratio, float near,
+           float far);
 
     glm::vec3 get_position() const;
 
@@ -23,6 +24,9 @@ class Camera {
     glm::vec3 m_direction;
     glm::vec3 m_up;
     glm::mat4 m_projection;
+
+    float m_near;
+    float m_far;
 };
 
 struct BufferData {

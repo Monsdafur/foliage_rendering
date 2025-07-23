@@ -1,6 +1,4 @@
 #include "glad/glad.h"
-#include "glm/detail/qualifier.hpp"
-#include "glm/ext/matrix_clip_space.hpp"
 #include "glm/ext/matrix_float4x4.hpp"
 #include "glm/ext/matrix_transform.hpp"
 #include "glm/ext/vector_float3.hpp"
@@ -15,7 +13,9 @@ int main() {
     // scene settings
     float field_size = 50.0f;
     float spacing = 0.4f;
+    float fog_bias = 20.0f;
     glm::vec3 light_direction = glm::vec3(1.0f, -2.3f, 1.4f);
+    glm::vec3 fog_color(0.9f, 0.9f, 0.9f);
 
     // random function
     std::function random_range = [](float low, float high) {
@@ -45,10 +45,19 @@ int main() {
         "resources/shaders/gpu_instancing.frag");
 
     default_shader.set_uniform_vector3("light_direction", light_direction);
+    default_shader.set_uniform_vector3("fog_color", fog_color);
+    default_shader.set_uniform_float("bias", 0.4f);
+    default_shader.set_uniform_float("near", 0.1f);
+    default_shader.set_uniform_float("far", 40.0f);
+    default_shader.set_uniform_float("fog_bias", fog_bias);
+
     gpu_instancing_shader.set_uniform_vector3("light_direction",
                                               light_direction);
-    default_shader.set_uniform_float("bias", 0.4f);
-    gpu_instancing_shader.set_uniform_float("bias", 0.75f);
+    gpu_instancing_shader.set_uniform_vector3("fog_color", fog_color);
+    gpu_instancing_shader.set_uniform_float("bias", 0.8f);
+    gpu_instancing_shader.set_uniform_float("near", 0.1f);
+    gpu_instancing_shader.set_uniform_float("far", 40.0f);
+    gpu_instancing_shader.set_uniform_float("fog_bias", fog_bias);
 
     // init objects
     std::vector<BufferData> grass_transforms;
@@ -164,7 +173,8 @@ int main() {
 
     // camera
     Camera camera(glm::vec3(0.0f, 0.0f, 0.0f), glm::radians(60.0f),
-                  (float)window.get_size().x / (float)window.get_size().y);
+                  (float)window.get_size().x / (float)window.get_size().y, 0.1f,
+                  40.0f);
 
     // time
     Timer delta_timer;
@@ -183,8 +193,10 @@ int main() {
                                 20.0f);
         camera.look_at(glm::vec3(0.0f, 0.0f, 0.0f));
         renderer.set_camera(camera);
+        default_shader.set_uniform_vector3("camera_position",
+                                           camera.get_position());
 
-        glClearColor(0.9f, 0.9f, 0.9f, 1.0f);
+        glClearColor(fog_color.r, fog_color.g, fog_color.b, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         renderer.draw_instances(grass_mesh, grass_buffer, gpu_instancing_shader,

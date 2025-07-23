@@ -5,9 +5,10 @@
 #include "glm/geometric.hpp"
 #include <iostream>
 
-Camera::Camera(const glm::vec3& position, float fov, float aspect_ratio)
+Camera::Camera(const glm::vec3& position, float fov, float aspect_ratio,
+               float near, float far)
     : m_position(position) {
-    m_projection = glm::perspective(fov, aspect_ratio, 0.1f, 50.0f);
+    m_projection = glm::perspective(fov, aspect_ratio, near, far);
     m_direction = glm::vec3(0.0f, 0.0f, -1.0f);
     m_up = glm::vec3(0.0f, 1.0f, 0.0f);
 }
@@ -45,6 +46,7 @@ Renderer::Renderer() {
             std::cout << "Failed to initialize GLAD" << std::endl;
         }
         glEnable(GL_DEPTH_TEST);
+        glDepthFunc(GL_LESS);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         glEnable(GL_CULL_FACE);
         glCullFace(GL_BACK);
