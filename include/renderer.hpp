@@ -25,12 +25,29 @@ class Camera {
     glm::mat4 m_projection;
 };
 
+struct BufferData {
+    glm::mat4 transform;
+};
+
+class ShaderBuffer {
+  public:
+    ShaderBuffer(const std::vector<BufferData>& data);
+
+    GLuint get_id() const;
+
+  private:
+    GLuint m_shader_buffer_object;
+};
+
 class Renderer {
   public:
     Renderer();
 
     void draw(const Mesh& mesh, const glm::mat4& transform, Shader& shader,
               GLuint mode = GL_TRIANGLES);
+
+    void draw_instances(const Mesh& mesh, const ShaderBuffer& shader_buffer,
+                        Shader& shader, int count, GLuint mode = GL_TRIANGLES);
 
     void set_camera(const Camera& camera);
 
