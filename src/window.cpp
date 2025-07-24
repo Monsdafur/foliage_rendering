@@ -131,7 +131,7 @@ void Window::set_input_handler(std::shared_ptr<Input> input) {
 
 void Window::poll_events() {
     m_input->clear_inputs();
-    glfwWaitEventsTimeout(1.0f / 144.0f);
+    glfwWaitEventsTimeout(1.0f / 360.0f);
 
     double x = 0.0f;
     double y = 0.0f;

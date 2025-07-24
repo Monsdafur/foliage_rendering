@@ -3,6 +3,9 @@
 #include "glm/ext/matrix_transform.hpp"
 #include "glm/ext/vector_float3.hpp"
 #include "glm/trigonometric.hpp"
+#include "imgui.h"
+#include "imgui_impl_glfw.h"
+#include "imgui_impl_opengl3.h"
 #include "include/renderer.hpp"
 #include "include/window.hpp"
 #include <memory>
@@ -16,6 +19,24 @@ int main() {
     float fog_bias = 20.0f;
     glm::vec3 light_direction = glm::vec3(2.0f, -2.6f, 1.8f);
     glm::vec3 fog_color(0.9f, 0.9f, 1.0f);
+    bool open_debug_window = true;
+    float camera_angle = 0.0f;
+    float camera_distance = 5.0f;
+    float camera_height = 6.0f;
+    int fps = 0;
+    float fps_update_interval = 0.5f;
+    float next_fps_update = fps_update_interval;
+    float fps_over_time[64];
+    for (int i = 0; i < 64; ++i) {
+        fps_over_time[i] = 60.0f;
+    }
+
+    auto push_array = [](float* array, int count, float value) {
+        for (int i = count - 1; i > 0; --i) {
+            array[i] = array[i - 1];
+        }
+        array[0] = value;
+    };
 
     // random function
     std::function random_range = [](float low, float high) {
@@ -33,6 +54,16 @@ int main() {
     // init renderer
     Renderer renderer;
     glViewport(0, 0, window.get_size().x, window.get_size().y);
+
+    // imgui
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO();
+    (void)io;
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
+    ImGui_ImplGlfw_InitForOpenGL(window.get_handler(), true);
+    ImGui_ImplOpenGL3_Init("#version 430");
 
     // load shaders
     Shader default_shader;
@@ -81,7 +112,7 @@ int main() {
             glm::mat4 rotation = rotation_x * rotation_y;
             glm::mat4 scale =
                 glm::scale(glm::mat4(1.0f),
-                           glm::vec3(1.0f, random_range(1.5f, 3.25f), 1.0f));
+                           glm::vec3(1.0f, random_range(1.5f, 4.0f), 1.0f));
             grass_transforms.push_back(
                 {translation * rotation * scale,
                  glm::mat4(random_range(-0.05f, 0.16f))});
@@ -139,19 +170,19 @@ int main() {
     std::vector<Vertex> grass_vertices = {
         // front
         {{0.24f, 0.0f, 0.0f}, {0.0f, 0.0f, -1.0f}, {0.0f, 1.0f, 0.0f}},
-        {{0.20f, 0.3f, 0.0f}, {0.0f, 0.0f, -1.0f}, {0.0f, 1.0f, 0.0f}},
-        {{0.10f, 0.6f, 0.0f}, {0.0f, 0.0f, -1.0f}, {0.0f, 1.0f, 0.0f}},
+        {{0.20f, 0.5f, 0.0f}, {0.0f, 0.0f, -1.0f}, {0.0f, 1.0f, 0.0f}},
+        {{0.10f, 0.8f, 0.0f}, {0.0f, 0.0f, -1.0f}, {0.0f, 1.0f, 0.0f}},
         {{0.0f, 1.0f, 0.0f}, {0.0f, 0.0f, -1.0f}, {0.0f, 1.0f, 0.0f}},
-        {{-0.10f, 0.6f, 0.0f}, {0.0f, 0.0f, -1.0f}, {0.0f, 1.0f, 0.0f}},
-        {{-0.20f, 0.3f, 0.0f}, {0.0f, 0.0f, -1.0f}, {0.0f, 1.0f, 0.0f}},
+        {{-0.10f, 0.8f, 0.0f}, {0.0f, 0.0f, -1.0f}, {0.0f, 1.0f, 0.0f}},
+        {{-0.20f, 0.5f, 0.0f}, {0.0f, 0.0f, -1.0f}, {0.0f, 1.0f, 0.0f}},
         {{-0.24f, 0.0f, 0.0f}, {0.0f, 0.0f, -1.0f}, {0.0f, 1.0f, 0.0f}},
         // back
         {{-0.24f, 0.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f, 0.0f}},
-        {{-0.20f, 0.3f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f, 0.0f}},
-        {{-0.10f, 0.6f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f, 0.0f}},
+        {{-0.20f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f, 0.0f}},
+        {{-0.10f, 0.8f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f, 0.0f}},
         {{0.0f, 1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f, 0.0f}},
-        {{0.10f, 0.6f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f, 0.0f}},
-        {{0.20f, 0.3f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f, 0.0f}},
+        {{0.10f, 0.8f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f, 0.0f}},
+        {{0.20f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f, 0.0f}},
         {{0.24f, 0.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f, 0.0f}},
     };
     std::vector<int> grass_indices = {
@@ -180,33 +211,57 @@ int main() {
     // time
     Timer delta_timer;
     Timer fixed_timer;
-    float delta_time = 0.001f;
+    float delta_time = 0.016f;
 
     while (window.is_open()) {
         window.poll_events();
         if (input->is_key_pressed(GLFW_KEY_ESCAPE)) {
             window.close();
         }
+        // imgui
+        ImGui_ImplOpenGL3_NewFrame();
+        ImGui_ImplGlfw_NewFrame();
+        ImGui::NewFrame();
+        if (open_debug_window) {
+            ImGui::SetNextWindowPos(ImVec2(0.0f, 0.0f));
+            ImGui::SetNextWindowSize(ImVec2(320.0f, 320.0f));
+            ImGui::Begin("debug", &open_debug_window,
+                         ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize);
+            if (fixed_timer.get_time() > next_fps_update) {
+                fps = (int)(1.0f / delta_time);
+                push_array(fps_over_time, 64, fps);
+                next_fps_update = fixed_timer.get_time() + fps_update_interval;
+            }
+            ImGui::Text("FPS: %d", fps);
+            ImGui::PlotLines("FPS over time", fps_over_time, 64);
+            ImGui::SliderFloat("angle", &camera_angle, 0.0f, 360.0f);
+            ImGui::SliderFloat("height", &camera_height, 2.0f, 12.0f);
+            ImGui::SliderFloat("distance", &camera_distance, 5.0f, 50.0f);
+            ImGui::End();
+        }
 
-        camera.set_position(glm::vec3(0.0f, 6.0f, 0.0f) +
-                            glm::vec3(cos(fixed_timer.get_time() * 0.01f), 0.0f,
-                                      sin(fixed_timer.get_time() * 0.01f)) *
-                                15.0f);
+        // update logic
+        camera.set_position(glm::vec3(0.0f, camera_height, 0.0f) +
+                            glm::vec3(cos(glm::radians(camera_angle)), 0.0f,
+                                      sin(glm::radians(camera_angle))) *
+                                camera_distance);
         camera.look_at(glm::vec3(0.0f, 0.0f, 0.0f));
         renderer.set_camera(camera);
         gpu_instancing_shader.set_uniform_float(
             "offset", sin(fixed_timer.get_time() * 4.0f) +
                           sin(fixed_timer.get_time() * 2.5f));
 
+        // render
         glClearColor(fog_color.r, fog_color.g, fog_color.b, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         renderer.draw_instances(grass_mesh, grass_buffer, gpu_instancing_shader,
                                 grass_transforms.size());
 
-        renderer.draw(ground_mesh,
-                      glm::scale(glm::mat4(1.0f), glm::vec3(field_size)),
-                      default_shader);
+        renderer.draw(
+            ground_mesh,
+            glm::scale(glm::mat4(1.0f), glm::vec3(field_size * 20.0f)),
+            default_shader);
 
         renderer.draw(
             cube_mesh,
@@ -214,10 +269,17 @@ int main() {
                 glm::scale(glm::mat4(1.0f), glm::vec3(1.0f, 2.5f, 1.0f)),
             default_shader);
 
+        // render imgui
+        ImGui::Render();
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
         window.display();
 
         delta_time = delta_timer.reset();
     }
+
+    ImGui_ImplOpenGL3_Shutdown();
+    ImGui_ImplGlfw_Shutdown();
+    ImGui::DestroyContext();
 
     return 0;
 }
