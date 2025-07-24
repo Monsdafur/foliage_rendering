@@ -23,8 +23,7 @@ void main()
     float diffuse = max(-dot(normal, normalize(light_direction)), bias);
     final_color *= diffuse;
     
-    float depth = linearize_depth(gl_FragCoord.z) / far;
-    depth = max(depth - fog_bias, 0.0f);
+    float depth = (linearize_depth(gl_FragCoord.z) - fog_bias) / (far - fog_bias);
 
     FragColor = vec4(vec3(mix(final_color, fog_color, depth)), 1.0f);
 }

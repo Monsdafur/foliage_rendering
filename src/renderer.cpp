@@ -1,5 +1,6 @@
 #include "renderer.hpp"
 #include "GLFW/glfw3.h"
+#include "glad/glad.h"
 #include "glm/ext/matrix_clip_space.hpp"
 #include "glm/ext/matrix_transform.hpp"
 #include "glm/geometric.hpp"
@@ -27,16 +28,6 @@ glm::mat4 Camera::get_matrix() const {
     return m_projection *
            glm::lookAt(m_position, m_position + m_direction, m_up);
 }
-
-ShaderBuffer::ShaderBuffer(const std::vector<BufferData>& data) {
-    glGenBuffers(1, &m_shader_buffer_object);
-    glBindBuffer(GL_SHADER_STORAGE_BUFFER, m_shader_buffer_object);
-    glBufferData(GL_SHADER_STORAGE_BUFFER, data.size() * sizeof(BufferData),
-                 data.data(), GL_STATIC_DRAW);
-    glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
-}
-
-GLuint ShaderBuffer::get_id() const { return m_shader_buffer_object; }
 
 bool Renderer::m_glad_initialized = false;
 
@@ -69,28 +60,4 @@ void Renderer::draw(const Mesh& mesh, const glm::mat4& transform,
                    mesh.get_indices().data());
     glBindVertexArray(0);
     glUseProgram(0);
-}
-
-void Renderer::draw_instances(const Mesh& mesh,
-                              const ShaderBuffer& shader_buffer, Shader& shader,
-                              int count, GLuint mode) {
-
-    shader.set_uniform_matrix4("projection", m_camera_matrix);
-
-    glBindBuffer(GL_SHADER_STORAGE_BUFFER, shader_buffer.get_id());
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, shader_buffer.get_id());
-
-    glUseProgram(shader.get_id());
-
-    glBindVertexArray(mesh.get_vertex_array_id());
-
-    glDrawElementsInstanced(mode, mesh.get_indices().size(), GL_UNSIGNED_INT,
-                            mesh.get_indices().data(), count);
-
-    glBindVertexArray(0);
-
-    glUseProgram(0);
-
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, 0);
-    glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 }

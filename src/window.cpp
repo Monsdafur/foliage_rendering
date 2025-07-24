@@ -85,7 +85,7 @@ Window::Window(const glm::ivec2& size, const std::string& title) {
         glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
         glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
         glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-        glfwWindowHint(GLFW_SAMPLES, 4);
+        // glfwWindowHint(GLFW_SAMPLES, 4);
         glfwSwapInterval(1);
         m_glfw_initialized = true;
     }
@@ -131,7 +131,7 @@ void Window::set_input_handler(std::shared_ptr<Input> input) {
 
 void Window::poll_events() {
     m_input->clear_inputs();
-    glfwPollEvents();
+    glfwWaitEventsTimeout(1.0f / 144.0f);
 
     double x = 0.0f;
     double y = 0.0f;

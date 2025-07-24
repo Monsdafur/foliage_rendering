@@ -10,8 +10,8 @@ uniform mat4 transform;
 
 void main()
 {
-    vec4 position_local = projection * (transform * vec4(a_position.xyz, 1.0));
-    gl_Position = position_local;
+    vec4 world_position = projection * (transform * vec4(a_position.xyz, 1.0));
+    gl_Position = world_position;
     color = a_color;
     normal = normalize(mat3(transpose(inverse(transform))) * a_normal);
 }

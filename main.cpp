@@ -11,11 +11,11 @@
 
 int main() {
     // scene settings
-    float field_size = 50.0f;
+    float field_size = 55.0f;
     float spacing = 0.4f;
     float fog_bias = 20.0f;
-    glm::vec3 light_direction = glm::vec3(1.0f, -2.3f, 1.4f);
-    glm::vec3 fog_color(0.9f, 0.9f, 0.9f);
+    glm::vec3 light_direction = glm::vec3(2.0f, -2.6f, 1.8f);
+    glm::vec3 fog_color(0.9f, 0.9f, 1.0f);
 
     // random function
     std::function random_range = [](float low, float high) {
@@ -26,13 +26,13 @@ int main() {
     };
 
     // init window
-    Window window({1920, 1080}, "grass");
+    Window window({1600, 800}, "grass");
     std::shared_ptr<Input> input = std::make_shared<Input>();
     window.set_input_handler(input);
 
     // init renderer
     Renderer renderer;
-    glViewport(0, 0, 1920, 1080);
+    glViewport(0, 0, window.get_size().x, window.get_size().y);
 
     // load shaders
     Shader default_shader;
@@ -46,21 +46,25 @@ int main() {
 
     default_shader.set_uniform_vector3("light_direction", light_direction);
     default_shader.set_uniform_vector3("fog_color", fog_color);
-    default_shader.set_uniform_float("bias", 0.4f);
+    default_shader.set_uniform_float("bias", 0.5f);
     default_shader.set_uniform_float("near", 0.1f);
-    default_shader.set_uniform_float("far", 40.0f);
+    default_shader.set_uniform_float("far", 50.0f);
     default_shader.set_uniform_float("fog_bias", fog_bias);
 
     gpu_instancing_shader.set_uniform_vector3("light_direction",
                                               light_direction);
     gpu_instancing_shader.set_uniform_vector3("fog_color", fog_color);
-    gpu_instancing_shader.set_uniform_float("bias", 0.8f);
+    gpu_instancing_shader.set_uniform_float("bias", 0.7f);
     gpu_instancing_shader.set_uniform_float("near", 0.1f);
-    gpu_instancing_shader.set_uniform_float("far", 40.0f);
+    gpu_instancing_shader.set_uniform_float("far", 50.0f);
     gpu_instancing_shader.set_uniform_float("fog_bias", fog_bias);
 
     // init objects
-    std::vector<BufferData> grass_transforms;
+    struct GrassBuffer {
+        glm::mat4 transform;
+        glm::mat4 sway;
+    };
+    std::vector<GrassBuffer> grass_transforms;
     for (float x = -field_size; x < field_size; x += spacing) {
         for (float z = -field_size; z < field_size; z += spacing) {
             float offset_direction = random_range(0.0f, M_PI * 2.0f);
@@ -77,49 +81,46 @@ int main() {
             glm::mat4 rotation = rotation_x * rotation_y;
             glm::mat4 scale =
                 glm::scale(glm::mat4(1.0f),
-                           glm::vec3(1.0f, random_range(0.9f, 1.0f), 1.0f));
-            grass_transforms.push_back({translation * rotation * scale});
+                           glm::vec3(1.0f, random_range(1.5f, 3.25f), 1.0f));
+            grass_transforms.push_back(
+                {translation * rotation * scale,
+                 glm::mat4(random_range(-0.05f, 0.16f))});
         }
     }
-    ShaderBuffer grass_buffer(grass_transforms);
+    ShaderBuffer<GrassBuffer> grass_buffer(grass_transforms);
 
     // init render object
     std::vector<Vertex> cube_vertices = {
         // front face
-        {{-1.0f, -1.0f, 1.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f, 0.7f}},
-        {{1.0f, -1.0f, 1.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f, 0.7f}},
+        {{-1.0f, -1.0f, 1.0f}, {0.0f, 0.0f, 1.0f}, {0.25f, 0.25f, 0.135f}},
+        {{1.0f, -1.0f, 1.0f}, {0.0f, 0.0f, 1.0f}, {0.25f, 0.25f, 0.135f}},
         {{1.0f, 1.0f, 1.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f, 0.7f}},
         {{-1.0f, 1.0f, 1.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f, 0.7f}},
-
         // back face
-        {{1.0f, -1.0f, -1.0f}, {0.0f, 0.0f, -1.0f}, {1.0f, 1.0f, 0.7f}},
-        {{-1.0f, -1.0f, -1.0f}, {0.0f, 0.0f, -1.0f}, {1.0f, 1.0f, 0.7f}},
+        {{1.0f, -1.0f, -1.0f}, {0.0f, 0.0f, -1.0f}, {0.25f, 0.25f, 0.135f}},
+        {{-1.0f, -1.0f, -1.0f}, {0.0f, 0.0f, -1.0f}, {0.25f, 0.25f, 0.135f}},
         {{-1.0f, 1.0f, -1.0f}, {0.0f, 0.0f, -1.0f}, {1.0f, 1.0f, 0.7f}},
         {{1.0f, 1.0f, -1.0f}, {0.0f, 0.0f, -1.0f}, {1.0f, 1.0f, 0.7f}},
-
         // left face
-        {{-1.0f, -1.0f, -1.0f}, {-1.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 0.7f}},
-        {{-1.0f, -1.0f, 1.0f}, {-1.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 0.7f}},
+        {{-1.0f, -1.0f, -1.0f}, {-1.0f, 0.0f, 0.0f}, {0.25f, 0.25f, 0.135f}},
+        {{-1.0f, -1.0f, 1.0f}, {-1.0f, 0.0f, 0.0f}, {0.25f, 0.25f, 0.135f}},
         {{-1.0f, 1.0f, 1.0f}, {-1.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 0.7f}},
         {{-1.0f, 1.0f, -1.0f}, {-1.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 0.7f}},
-
         // right face
-        {{1.0f, -1.0f, 1.0f}, {1.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 0.7f}},
-        {{1.0f, -1.0f, -1.0f}, {1.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 0.7f}},
+        {{1.0f, -1.0f, 1.0f}, {1.0f, 0.0f, 0.0f}, {0.25f, 0.25f, 0.135f}},
+        {{1.0f, -1.0f, -1.0f}, {1.0f, 0.0f, 0.0f}, {0.25f, 0.25f, 0.135f}},
         {{1.0f, 1.0f, -1.0f}, {1.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 0.7f}},
         {{1.0f, 1.0f, 1.0f}, {1.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 0.7f}},
-
         // top face
         {{-1.0f, 1.0f, 1.0f}, {0.0f, 1.0f, 0.0f}, {1.0f, 1.0f, 0.7f}},
         {{1.0f, 1.0f, 1.0f}, {0.0f, 1.0f, 0.0f}, {1.0f, 1.0f, 0.7f}},
         {{1.0f, 1.0f, -1.0f}, {0.0f, 1.0f, 0.0f}, {1.0f, 1.0f, 0.7f}},
         {{-1.0f, 1.0f, -1.0f}, {0.0f, 1.0f, 0.0f}, {1.0f, 1.0f, 0.7f}},
-
         // bottom face
-        {{-1.0f, -1.0f, -1.0f}, {0.0f, -1.0f, 0.0f}, {1.0f, 1.0f, 0.7f}},
-        {{1.0f, -1.0f, -1.0f}, {0.0f, -1.0f, 0.0f}, {1.0f, 1.0f, 0.7f}},
-        {{1.0f, -1.0f, 1.0f}, {0.0f, -1.0f, 0.0f}, {1.0f, 1.0f, 0.7f}},
-        {{-1.0f, -1.0f, 1.0f}, {0.0f, -1.0f, 0.0f}, {1.0f, 1.0f, 0.7f}},
+        {{-1.0f, -1.0f, -1.0f}, {0.0f, -1.0f, 0.0f}, {1.0f, 0.7f, 0.4f}},
+        {{1.0f, -1.0f, -1.0f}, {0.0f, -1.0f, 0.0f}, {1.0f, 0.7f, 0.4f}},
+        {{1.0f, -1.0f, 1.0f}, {0.0f, -1.0f, 0.0f}, {1.0f, 0.7f, 0.4f}},
+        {{-1.0f, -1.0f, 1.0f}, {0.0f, -1.0f, 0.0f}, {1.0f, 0.7f, 0.4f}},
     };
 
     std::vector<int> cube_indices = {// front
@@ -137,21 +138,21 @@ int main() {
 
     std::vector<Vertex> grass_vertices = {
         // front
-        {{0.24f, 0.0f, 0.0f}, {0.0f, 0.0f, -1.0f}, {0.0f, 0.25f, 0.0f}},
-        {{0.20f, 1.5f, 0.0f}, {0.0f, 0.0f, -1.0f}, {0.0f, 0.5f, 0.0f}},
-        {{0.10f, 2.7f, 0.0f}, {0.0f, 0.0f, -1.0f}, {0.0f, 0.75f, 0.0f}},
-        {{0.0f, 3.2f, 0.0f}, {0.0f, 0.0f, -1.0f}, {0.0f, 1.0f, 0.0f}},
-        {{-0.10f, 2.7f, 0.0f}, {0.0f, 0.0f, -1.0f}, {0.0f, 0.75f, 0.0f}},
-        {{-0.20f, 1.5f, 0.0f}, {0.0f, 0.0f, -1.0f}, {0.0f, 0.5f, 0.0f}},
-        {{-0.24f, 0.0f, 0.0f}, {0.0f, 0.0f, -1.0f}, {0.0f, 0.25f, 0.0f}},
+        {{0.24f, 0.0f, 0.0f}, {0.0f, 0.0f, -1.0f}, {0.0f, 1.0f, 0.0f}},
+        {{0.20f, 0.3f, 0.0f}, {0.0f, 0.0f, -1.0f}, {0.0f, 1.0f, 0.0f}},
+        {{0.10f, 0.6f, 0.0f}, {0.0f, 0.0f, -1.0f}, {0.0f, 1.0f, 0.0f}},
+        {{0.0f, 1.0f, 0.0f}, {0.0f, 0.0f, -1.0f}, {0.0f, 1.0f, 0.0f}},
+        {{-0.10f, 0.6f, 0.0f}, {0.0f, 0.0f, -1.0f}, {0.0f, 1.0f, 0.0f}},
+        {{-0.20f, 0.3f, 0.0f}, {0.0f, 0.0f, -1.0f}, {0.0f, 1.0f, 0.0f}},
+        {{-0.24f, 0.0f, 0.0f}, {0.0f, 0.0f, -1.0f}, {0.0f, 1.0f, 0.0f}},
         // back
-        {{-0.24f, 0.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 0.25f, 0.0f}},
-        {{-0.20f, 1.5f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 0.5f, 0.0f}},
-        {{-0.10f, 2.7f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 0.75f, 0.0f}},
-        {{0.0f, 3.2f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f, 0.0f}},
-        {{0.10f, 2.7f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 0.75f, 0.0f}},
-        {{0.20f, 1.5f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 0.5f, 0.0f}},
-        {{0.24f, 0.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 0.25f, 0.0f}},
+        {{-0.24f, 0.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f, 0.0f}},
+        {{-0.20f, 0.3f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f, 0.0f}},
+        {{-0.10f, 0.6f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f, 0.0f}},
+        {{0.0f, 1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f, 0.0f}},
+        {{0.10f, 0.6f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f, 0.0f}},
+        {{0.20f, 0.3f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f, 0.0f}},
+        {{0.24f, 0.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f, 0.0f}},
     };
     std::vector<int> grass_indices = {
         // front
@@ -160,10 +161,10 @@ int main() {
         7, 8, 12, 7, 12, 13, 8, 9, 12, 9, 11, 12, 9, 10, 11};
 
     std::vector<Vertex> ground_vertices = {
-        {{1.0f, 0.0f, 1.0f}, {0.0f, 1.0f, 0.0f}, {0.3f, 0.4f, 0.2f}},
-        {{1.0f, 0.0f, -1.0f}, {0.0f, 1.0f, 0.0f}, {0.3f, 0.4f, 0.2f}},
-        {{-1.0f, 0.0f, -1.0f}, {0.0f, 1.0f, 0.0f}, {0.3f, 0.4f, 0.2f}},
-        {{-1.0f, 0.0f, 1.0f}, {0.0f, 1.0f, 0.0f}, {0.3f, 0.4f, 0.2f}},
+        {{1.0f, 0.0f, 1.0f}, {0.0f, 1.0f, 0.0f}, {0.1f, 0.2f, 0.0f}},
+        {{1.0f, 0.0f, -1.0f}, {0.0f, 1.0f, 0.0f}, {0.2f, 0.2f, 0.0f}},
+        {{-1.0f, 0.0f, -1.0f}, {0.0f, 1.0f, 0.0f}, {0.2f, 0.2f, 0.0f}},
+        {{-1.0f, 0.0f, 1.0f}, {0.0f, 1.0f, 0.0f}, {0.1f, 0.2f, 0.0f}},
     };
     std::vector<int> ground_indices = {0, 1, 2, 0, 2, 3};
 
@@ -174,7 +175,7 @@ int main() {
     // camera
     Camera camera(glm::vec3(0.0f, 0.0f, 0.0f), glm::radians(60.0f),
                   (float)window.get_size().x / (float)window.get_size().y, 0.1f,
-                  40.0f);
+                  50.0f);
 
     // time
     Timer delta_timer;
@@ -187,14 +188,15 @@ int main() {
             window.close();
         }
 
-        camera.set_position(glm::vec3(0.0f, 7.0f, 0.0f) +
-                            glm::vec3(cos(fixed_timer.get_time() * 0.25f), 0.0f,
-                                      sin(fixed_timer.get_time() * 0.25f)) *
-                                20.0f);
+        camera.set_position(glm::vec3(0.0f, 6.0f, 0.0f) +
+                            glm::vec3(cos(fixed_timer.get_time() * 0.01f), 0.0f,
+                                      sin(fixed_timer.get_time() * 0.01f)) *
+                                15.0f);
         camera.look_at(glm::vec3(0.0f, 0.0f, 0.0f));
         renderer.set_camera(camera);
-        default_shader.set_uniform_vector3("camera_position",
-                                           camera.get_position());
+        gpu_instancing_shader.set_uniform_float(
+            "offset", sin(fixed_timer.get_time() * 4.0f) +
+                          sin(fixed_timer.get_time() * 2.5f));
 
         glClearColor(fog_color.r, fog_color.g, fog_color.b, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
