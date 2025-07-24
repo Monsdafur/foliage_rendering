@@ -19,6 +19,10 @@ class Camera {
 
     glm::mat4 get_matrix() const;
 
+    float get_near_clip_plane() const;
+
+    float get_far_clip_plane() const;
+
   private:
     glm::vec3 m_position;
     glm::vec3 m_direction;

@@ -8,8 +8,8 @@
 
 Camera::Camera(const glm::vec3& position, float fov, float aspect_ratio,
                float near, float far)
-    : m_position(position) {
-    m_projection = glm::perspective(fov, aspect_ratio, near, far);
+    : m_position(position), m_near(near), m_far(far) {
+    m_projection = glm::perspective(fov, aspect_ratio, m_near, m_far);
     m_direction = glm::vec3(0.0f, 0.0f, -1.0f);
     m_up = glm::vec3(0.0f, 1.0f, 0.0f);
 }
@@ -28,6 +28,10 @@ glm::mat4 Camera::get_matrix() const {
     return m_projection *
            glm::lookAt(m_position, m_position + m_direction, m_up);
 }
+
+float Camera::get_near_clip_plane() const { return m_near; }
+
+float Camera::get_far_clip_plane() const { return m_far; }
 
 bool Renderer::m_glad_initialized = false;
 

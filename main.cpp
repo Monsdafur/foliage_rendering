@@ -1,7 +1,7 @@
 #include "glad/glad.h"
 #include "glm/ext/matrix_float4x4.hpp"
 #include "glm/ext/matrix_transform.hpp"
-#include "glm/ext/vector_float3.hpp"
+#include "glm/ext/quaternion_geometric.hpp"
 #include "glm/ext/vector_int3.hpp"
 #include "glm/trigonometric.hpp"
 #include "imgui.h"
@@ -9,9 +9,7 @@
 #include "imgui_impl_opengl3.h"
 #include "include/renderer.hpp"
 #include "include/window.hpp"
-#include "utility.hpp"
 #include <cmath>
-#include <iostream>
 #include <memory>
 #include <random>
 #include <vector>
@@ -23,7 +21,7 @@ int main() {
     float spacing = 0.4f;
     glm::vec3 star_position = glm::vec3(field_size / -2.0f * spacing, 0.0f,
                                         field_size / -2.0f * spacing);
-    float fog_bias = 20.0f;
+    float fog_bias = -0.42f;
     glm::vec3 light_direction = glm::vec3(2.0f, -2.6f, 1.8f);
     glm::vec3 fog_color(0.9f, 0.9f, 1.0f);
     bool open_debug_window = true;
@@ -62,6 +60,11 @@ int main() {
     Renderer renderer;
     glViewport(0, 0, window.get_size().x, window.get_size().y);
 
+    // camera
+    Camera camera(glm::vec3(0.0f, 0.0f, 0.0f), glm::radians(60.0f),
+                  (float)window.get_size().x / (float)window.get_size().y, 0.1f,
+                  80.0f);
+
     // imgui
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
@@ -83,7 +86,7 @@ int main() {
     gpu_instancing_shader.load_shader_from_path(
         "resources/shaders/gpu_instancing.vert", GL_VERTEX_SHADER);
     gpu_instancing_shader.load_shader_from_path(
-        "resources/shaders/gpu_instancing.frag", GL_FRAGMENT_SHADER);
+        "resources/shaders/default.frag", GL_FRAGMENT_SHADER);
 
     Shader field_generator_shader;
     field_generator_shader.load_shader_from_path(
@@ -91,18 +94,18 @@ int main() {
 
     default_shader.set_uniform_vector3("light_direction", light_direction);
     default_shader.set_uniform_vector3("fog_color", fog_color);
-    default_shader.set_uniform_float("bias", 0.5f);
-    default_shader.set_uniform_float("near", 0.1f);
-    default_shader.set_uniform_float("far", 90.0f);
-    default_shader.set_uniform_float("fog_bias", fog_bias);
+    default_shader.set_uniform_float("bias", 0.4f);
+    default_shader.set_uniform_float("view_distance",
+                                     camera.get_far_clip_plane() - 20.0f);
+    default_shader.set_uniform_float("flog_bias", fog_bias);
 
     gpu_instancing_shader.set_uniform_vector3("light_direction",
                                               light_direction);
     gpu_instancing_shader.set_uniform_vector3("fog_color", fog_color);
-    gpu_instancing_shader.set_uniform_float("bias", 0.7f);
-    gpu_instancing_shader.set_uniform_float("near", 0.1f);
-    gpu_instancing_shader.set_uniform_float("far", 90.0f);
-    gpu_instancing_shader.set_uniform_float("fog_bias", fog_bias);
+    gpu_instancing_shader.set_uniform_float("bias", 0.4f);
+    gpu_instancing_shader.set_uniform_float(
+        "view_distance", camera.get_far_clip_plane() - 20.0f);
+    gpu_instancing_shader.set_uniform_float("flog_bias", fog_bias);
 
     field_generator_shader.set_uniform_int("width", field_size);
     field_generator_shader.set_uniform_int("height", field_size);
@@ -120,33 +123,42 @@ int main() {
     field_generator_shader.dispatch_buffer_data(
         grass_buffer, glm::ivec3(field_size, field_size, 1));
 
-    glBindBuffer(GL_SHADER_STORAGE_BUFFER, grass_buffer.get_id());
-    GrassBuffer* data =
-        (GrassBuffer*)glMapBuffer(GL_SHADER_STORAGE_BUFFER, GL_READ_ONLY);
-
-    glUnmapBuffer(GL_SHADER_STORAGE_BUFFER);
-    glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+    std::vector<glm::mat4> cubes(30);
+    for (int i = 0; i < cubes.size(); ++i) {
+        float w = random_range(1.0f, 2.0f);
+        glm::vec3 scale(w, random_range(3.0f, 5.0f), w);
+        glm::vec3 position(
+            random_range(-field_size * spacing, field_size * spacing) * 0.5f,
+            scale.y,
+            random_range(-field_size * spacing, field_size * spacing) * 0.5f);
+        glm::vec3 rotation_axis(0.0f, 1.0f, 0.0f);
+        float angle = random_range(0.0, M_PI * 2.0f);
+        glm::mat4 m_i(1.0f);
+        cubes[i] = glm::translate(m_i, position) *
+                   glm::rotate(m_i, angle, rotation_axis) *
+                   glm::scale(m_i, scale);
+    }
 
     // init render object
     std::vector<Vertex> cube_vertices = {
         // front face
-        {{-1.0f, -1.0f, 1.0f}, {0.0f, 0.0f, 1.0f}, {0.25f, 0.25f, 0.135f}},
-        {{1.0f, -1.0f, 1.0f}, {0.0f, 0.0f, 1.0f}, {0.25f, 0.25f, 0.135f}},
+        {{-1.0f, -1.0f, 1.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f, 0.7f}},
+        {{1.0f, -1.0f, 1.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f, 0.7f}},
         {{1.0f, 1.0f, 1.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f, 0.7f}},
         {{-1.0f, 1.0f, 1.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f, 0.7f}},
         // back face
-        {{1.0f, -1.0f, -1.0f}, {0.0f, 0.0f, -1.0f}, {0.25f, 0.25f, 0.135f}},
-        {{-1.0f, -1.0f, -1.0f}, {0.0f, 0.0f, -1.0f}, {0.25f, 0.25f, 0.135f}},
+        {{1.0f, -1.0f, -1.0f}, {0.0f, 0.0f, -1.0f}, {1.0f, 1.0f, 0.7f}},
+        {{-1.0f, -1.0f, -1.0f}, {0.0f, 0.0f, -1.0f}, {1.0f, 1.0f, 0.7f}},
         {{-1.0f, 1.0f, -1.0f}, {0.0f, 0.0f, -1.0f}, {1.0f, 1.0f, 0.7f}},
         {{1.0f, 1.0f, -1.0f}, {0.0f, 0.0f, -1.0f}, {1.0f, 1.0f, 0.7f}},
         // left face
-        {{-1.0f, -1.0f, -1.0f}, {-1.0f, 0.0f, 0.0f}, {0.25f, 0.25f, 0.135f}},
-        {{-1.0f, -1.0f, 1.0f}, {-1.0f, 0.0f, 0.0f}, {0.25f, 0.25f, 0.135f}},
+        {{-1.0f, -1.0f, -1.0f}, {-1.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 0.7f}},
+        {{-1.0f, -1.0f, 1.0f}, {-1.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 0.7f}},
         {{-1.0f, 1.0f, 1.0f}, {-1.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 0.7f}},
         {{-1.0f, 1.0f, -1.0f}, {-1.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 0.7f}},
         // right face
-        {{1.0f, -1.0f, 1.0f}, {1.0f, 0.0f, 0.0f}, {0.25f, 0.25f, 0.135f}},
-        {{1.0f, -1.0f, -1.0f}, {1.0f, 0.0f, 0.0f}, {0.25f, 0.25f, 0.135f}},
+        {{1.0f, -1.0f, 1.0f}, {1.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 0.7f}},
+        {{1.0f, -1.0f, -1.0f}, {1.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 0.7f}},
         {{1.0f, 1.0f, -1.0f}, {1.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 0.7f}},
         {{1.0f, 1.0f, 1.0f}, {1.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 0.7f}},
         // top face
@@ -176,21 +188,21 @@ int main() {
 
     std::vector<Vertex> grass_vertices = {
         // front
-        {{0.24f, 0.0f, 0.0f}, {0.0f, 0.0f, -1.0f}, {0.0f, 1.0f, 0.0f}},
-        {{0.20f, 0.5f, 0.0f}, {0.0f, 0.0f, -1.0f}, {0.0f, 1.0f, 0.0f}},
-        {{0.10f, 0.8f, 0.0f}, {0.0f, 0.0f, -1.0f}, {0.0f, 1.0f, 0.0f}},
-        {{0.0f, 1.0f, 0.0f}, {0.0f, 0.0f, -1.0f}, {0.0f, 1.0f, 0.0f}},
-        {{-0.10f, 0.8f, 0.0f}, {0.0f, 0.0f, -1.0f}, {0.0f, 1.0f, 0.0f}},
-        {{-0.20f, 0.5f, 0.0f}, {0.0f, 0.0f, -1.0f}, {0.0f, 1.0f, 0.0f}},
-        {{-0.24f, 0.0f, 0.0f}, {0.0f, 0.0f, -1.0f}, {0.0f, 1.0f, 0.0f}},
+        {{0.24f, 0.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 0.75f, 0.0f}},
+        {{0.20f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 0.75f, 0.0f}},
+        {{0.10f, 0.8f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 0.75f, 0.0f}},
+        {{0.0f, 1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 0.75f, 0.0f}},
+        {{-0.10f, 0.8f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 0.75f, 0.0f}},
+        {{-0.20f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 0.75f, 0.0f}},
+        {{-0.24f, 0.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 0.75f, 0.0f}},
         // back
-        {{-0.24f, 0.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f, 0.0f}},
-        {{-0.20f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f, 0.0f}},
-        {{-0.10f, 0.8f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f, 0.0f}},
-        {{0.0f, 1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f, 0.0f}},
-        {{0.10f, 0.8f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f, 0.0f}},
-        {{0.20f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f, 0.0f}},
-        {{0.24f, 0.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f, 0.0f}},
+        {{-0.24f, 0.0f, 0.0f}, {0.0f, 0.0f, -1.0f}, {0.0f, 0.75f, 0.0f}},
+        {{-0.20f, 0.5f, 0.0f}, {0.0f, 0.0f, -1.0f}, {0.0f, 0.75f, 0.0f}},
+        {{-0.10f, 0.8f, 0.0f}, {0.0f, 0.0f, -1.0f}, {0.0f, 0.75f, 0.0f}},
+        {{0.0f, 1.0f, 0.0f}, {0.0f, 0.0f, -1.0f}, {0.0f, 0.75f, 0.0f}},
+        {{0.10f, 0.8f, 0.0f}, {0.0f, 0.0f, -1.0f}, {0.0f, 0.675, 0.0f}},
+        {{0.20f, 0.5f, 0.0f}, {0.0f, 0.0f, -1.0f}, {0.0f, 0.675, 0.0f}},
+        {{0.24f, 0.0f, 0.0f}, {0.0f, 0.0f, -1.0f}, {0.0f, 0.675, 0.0f}},
     };
     std::vector<int> grass_indices = {
         // front
@@ -199,21 +211,16 @@ int main() {
         7, 8, 12, 7, 12, 13, 8, 9, 12, 9, 11, 12, 9, 10, 11};
 
     std::vector<Vertex> ground_vertices = {
-        {{1.0f, 0.0f, 1.0f}, {0.0f, 1.0f, 0.0f}, {0.1f, 0.2f, 0.0f}},
-        {{1.0f, 0.0f, -1.0f}, {0.0f, 1.0f, 0.0f}, {0.2f, 0.2f, 0.0f}},
-        {{-1.0f, 0.0f, -1.0f}, {0.0f, 1.0f, 0.0f}, {0.2f, 0.2f, 0.0f}},
-        {{-1.0f, 0.0f, 1.0f}, {0.0f, 1.0f, 0.0f}, {0.1f, 0.2f, 0.0f}},
+        {{1.0f, 0.0f, 1.0f}, {0.0f, 1.0f, 0.0f}, {0.1f, 0.06f, 0.0f}},
+        {{1.0f, 0.0f, -1.0f}, {0.0f, 1.0f, 0.0f}, {0.1f, 0.06f, 0.0f}},
+        {{-1.0f, 0.0f, -1.0f}, {0.0f, 1.0f, 0.0f}, {0.1f, 0.06f, 0.0f}},
+        {{-1.0f, 0.0f, 1.0f}, {0.0f, 1.0f, 0.0f}, {0.1f, 0.06f, 0.0f}},
     };
     std::vector<int> ground_indices = {0, 1, 2, 0, 2, 3};
 
     Mesh cube_mesh(cube_vertices, cube_indices);
     Mesh grass_mesh(grass_vertices, grass_indices);
     Mesh ground_mesh(ground_vertices, ground_indices);
-
-    // camera
-    Camera camera(glm::vec3(0.0f, 0.0f, 0.0f), glm::radians(60.0f),
-                  (float)window.get_size().x / (float)window.get_size().y, 0.1f,
-                  90.0f);
 
     // time
     Timer delta_timer;
@@ -267,6 +274,7 @@ int main() {
             ImGui::SliderFloat("angle", &camera_angle, 0.0f, 360.0f);
             ImGui::SliderFloat("height", &camera_height, 2.0f, 48.0f);
             ImGui::SliderFloat("distance", &camera_distance, 5.0f, 100.0f);
+            ImGui::SliderFloat("fog bias", &fog_bias, -1.0f, 1.0f);
             ImGui::End();
         }
 
@@ -277,6 +285,13 @@ int main() {
                                 camera_distance);
         camera.look_at(glm::vec3(0.0f, 0.0f, 0.0f));
         renderer.set_camera(camera);
+
+        default_shader.set_uniform_vector3("camera_position",
+                                           camera.get_position());
+        gpu_instancing_shader.set_uniform_vector3("camera_position",
+                                                  camera.get_position());
+        default_shader.set_uniform_float("fog_bias", fog_bias);
+        gpu_instancing_shader.set_uniform_float("fog_bias", fog_bias);
         gpu_instancing_shader.set_uniform_float(
             "offset", sway_function(harmonics, fixed_timer.get_time()));
 
@@ -290,12 +305,9 @@ int main() {
         renderer.draw(ground_mesh,
                       glm::scale(glm::mat4(1.0f), glm::vec3(200.0f)),
                       default_shader);
-
-        // renderer.draw(
-        //     cube_mesh,
-        //     glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 4.0f, 0.0f)) *
-        //         glm::scale(glm::mat4(1.0f), glm::vec3(1.25f, 4.0f, 1.25f)),
-        //     default_shader);
+        for (glm::mat4 cube : cubes) {
+            renderer.draw(cube_mesh, cube, default_shader);
+        }
 
         // render imgui
         ImGui::Render();
