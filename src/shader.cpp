@@ -6,6 +6,8 @@
 #include <iostream>
 #include <sstream>
 
+Shader::Shader() { m_id = glCreateProgram(); }
+
 Shader::~Shader() { glDeleteProgram(m_id); }
 
 static bool
@@ -23,16 +25,14 @@ check_shader_compilation_error(GLuint shader,
     return success;
 }
 
-static bool check_shader_linking_error(
-    GLuint shader_program, const std::filesystem::path& vertex_shader_file_path,
-    const std::filesystem::path& fragment_shader_file_path) {
+static bool check_shader_linking_error(GLuint shader_program,
+                                       const std::filesystem::path& path) {
     int success = 0;
     glGetProgramiv(shader_program, GL_LINK_STATUS, &success);
     if (!success) {
         char error_log[512];
         glGetProgramInfoLog(shader_program, 512, NULL, error_log);
-        std::cout << "ERROR LINKING PROGRAM: " << vertex_shader_file_path
-                  << " AND " << fragment_shader_file_path << std::endl;
+        std::cout << "ERROR LINKING PROGRAM: " << path << std::endl;
         std::cout << error_log << std::endl;
     }
 
@@ -51,49 +51,29 @@ static std::string fetch_shader_code(const std::filesystem::path& path) {
     return shader_code;
 }
 
-bool Shader::load_shader_from_path(
-    const std::filesystem::path& vertex_shader_path,
-    const std::filesystem::path& fragment_shader_path) {
-    // fetch vertex shader source
-    std::string vertex_shader_code_string =
-        fetch_shader_code(vertex_shader_path);
-    const char* vertex_shader_code = vertex_shader_code_string.c_str();
+bool Shader::load_shader_from_path(const std::filesystem::path& shader_path,
+                                   GLuint type) {
+    // shader source
+    std::string shader_code_string = fetch_shader_code(shader_path);
+    const char* shader_code = shader_code_string.c_str();
 
-    // fetch fragment shader source
-    std::string fragment_shader_code_string =
-        fetch_shader_code(fragment_shader_path);
-    const char* fragment_shader_code = fragment_shader_code_string.c_str();
-
-    GLuint vertex_shader;
-    vertex_shader = glCreateShader(GL_VERTEX_SHADER);
-    glShaderSource(vertex_shader, 1, &vertex_shader_code, NULL);
-    glCompileShader(vertex_shader);
-    if (!check_shader_compilation_error(vertex_shader, vertex_shader_path)) {
+    // load shader
+    GLuint shader;
+    shader = glCreateShader(type);
+    glShaderSource(shader, 1, &shader_code, NULL);
+    glCompileShader(shader);
+    if (!check_shader_compilation_error(shader, shader_path)) {
         return false;
     }
 
-    // fragment shader
-    GLuint fragment_shader;
-    fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource(fragment_shader, 1, &fragment_shader_code, NULL);
-    glCompileShader(fragment_shader);
-    if (!check_shader_compilation_error(fragment_shader,
-                                        fragment_shader_path)) {
-        return false;
-    }
-
-    // shader program
-    m_id = glCreateProgram();
-    glAttachShader(m_id, vertex_shader);
-    glAttachShader(m_id, fragment_shader);
+    // link program
+    glAttachShader(m_id, shader);
     glLinkProgram(m_id);
-    if (!check_shader_linking_error(m_id, vertex_shader_path,
-                                    fragment_shader_path)) {
+    if (!check_shader_linking_error(m_id, shader_path)) {
         return false;
     }
 
-    glDeleteShader(vertex_shader);
-    glDeleteShader(fragment_shader);
+    glDeleteShader(shader);
 
     return true;
 }

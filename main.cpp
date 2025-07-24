@@ -2,26 +2,33 @@
 #include "glm/ext/matrix_float4x4.hpp"
 #include "glm/ext/matrix_transform.hpp"
 #include "glm/ext/vector_float3.hpp"
+#include "glm/ext/vector_int3.hpp"
 #include "glm/trigonometric.hpp"
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
 #include "include/renderer.hpp"
 #include "include/window.hpp"
+#include "utility.hpp"
+#include <cmath>
+#include <iostream>
 #include <memory>
 #include <random>
 #include <vector>
 
 int main() {
     // scene settings
-    float field_size = 55.0f;
+    int field_size = 500;
+    int grass_count = field_size * field_size;
     float spacing = 0.4f;
+    glm::vec3 star_position = glm::vec3(field_size / -2.0f * spacing, 0.0f,
+                                        field_size / -2.0f * spacing);
     float fog_bias = 20.0f;
     glm::vec3 light_direction = glm::vec3(2.0f, -2.6f, 1.8f);
     glm::vec3 fog_color(0.9f, 0.9f, 1.0f);
     bool open_debug_window = true;
     float camera_angle = 0.0f;
-    float camera_distance = 5.0f;
+    float camera_distance = 15.0f;
     float camera_height = 6.0f;
     int fps = 0;
     float fps_update_interval = 0.5f;
@@ -68,18 +75,25 @@ int main() {
     // load shaders
     Shader default_shader;
     default_shader.load_shader_from_path("resources/shaders/default.vert",
-                                         "resources/shaders/default.frag");
+                                         GL_VERTEX_SHADER);
+    default_shader.load_shader_from_path("resources/shaders/default.frag",
+                                         GL_FRAGMENT_SHADER);
 
     Shader gpu_instancing_shader;
     gpu_instancing_shader.load_shader_from_path(
-        "resources/shaders/gpu_instancing.vert",
-        "resources/shaders/gpu_instancing.frag");
+        "resources/shaders/gpu_instancing.vert", GL_VERTEX_SHADER);
+    gpu_instancing_shader.load_shader_from_path(
+        "resources/shaders/gpu_instancing.frag", GL_FRAGMENT_SHADER);
+
+    Shader field_generator_shader;
+    field_generator_shader.load_shader_from_path(
+        "resources/shaders/field_generator.comp", GL_COMPUTE_SHADER);
 
     default_shader.set_uniform_vector3("light_direction", light_direction);
     default_shader.set_uniform_vector3("fog_color", fog_color);
     default_shader.set_uniform_float("bias", 0.5f);
     default_shader.set_uniform_float("near", 0.1f);
-    default_shader.set_uniform_float("far", 50.0f);
+    default_shader.set_uniform_float("far", 90.0f);
     default_shader.set_uniform_float("fog_bias", fog_bias);
 
     gpu_instancing_shader.set_uniform_vector3("light_direction",
@@ -87,38 +101,31 @@ int main() {
     gpu_instancing_shader.set_uniform_vector3("fog_color", fog_color);
     gpu_instancing_shader.set_uniform_float("bias", 0.7f);
     gpu_instancing_shader.set_uniform_float("near", 0.1f);
-    gpu_instancing_shader.set_uniform_float("far", 50.0f);
+    gpu_instancing_shader.set_uniform_float("far", 90.0f);
     gpu_instancing_shader.set_uniform_float("fog_bias", fog_bias);
+
+    field_generator_shader.set_uniform_int("width", field_size);
+    field_generator_shader.set_uniform_int("height", field_size);
+    field_generator_shader.set_uniform_vector3("start_position", star_position);
+    field_generator_shader.set_uniform_float("spacing", spacing);
 
     // init objects
     struct GrassBuffer {
         glm::mat4 transform;
         glm::mat4 sway;
     };
-    std::vector<GrassBuffer> grass_transforms;
-    for (float x = -field_size; x < field_size; x += spacing) {
-        for (float z = -field_size; z < field_size; z += spacing) {
-            float offset_direction = random_range(0.0f, M_PI * 2.0f);
-            glm::vec3 offset(cos(offset_direction), 0.0f,
-                             sin(offset_direction));
-            glm::mat4 translation = glm::translate(
-                glm::mat4(1.0f), glm::vec3(x, 0.0f, z) + offset * 0.2f);
-            glm::mat4 rotation_y =
-                glm::rotate(glm::mat4(1.0f), (float)random_range(0.0f, M_PI),
-                            glm::vec3(0.0f, 1.0f, 0.0f));
-            glm::mat4 rotation_x =
-                glm::rotate(glm::mat4(1.0f), (float)random_range(-0.1f, 0.1f),
-                            glm::vec3(1.0f, 0.0f, 0.0f));
-            glm::mat4 rotation = rotation_x * rotation_y;
-            glm::mat4 scale =
-                glm::scale(glm::mat4(1.0f),
-                           glm::vec3(1.0f, random_range(1.5f, 4.0f), 1.0f));
-            grass_transforms.push_back(
-                {translation * rotation * scale,
-                 glm::mat4(random_range(-0.05f, 0.16f))});
-        }
-    }
+    std::vector<GrassBuffer> grass_transforms(grass_count);
+
     ShaderBuffer<GrassBuffer> grass_buffer(grass_transforms);
+    field_generator_shader.dispatch_buffer_data(
+        grass_buffer, glm::ivec3(field_size, field_size, 1));
+
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, grass_buffer.get_id());
+    GrassBuffer* data =
+        (GrassBuffer*)glMapBuffer(GL_SHADER_STORAGE_BUFFER, GL_READ_ONLY);
+
+    glUnmapBuffer(GL_SHADER_STORAGE_BUFFER);
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 
     // init render object
     std::vector<Vertex> cube_vertices = {
@@ -206,12 +213,34 @@ int main() {
     // camera
     Camera camera(glm::vec3(0.0f, 0.0f, 0.0f), glm::radians(60.0f),
                   (float)window.get_size().x / (float)window.get_size().y, 0.1f,
-                  50.0f);
+                  90.0f);
 
     // time
     Timer delta_timer;
     Timer fixed_timer;
     float delta_time = 0.016f;
+
+    // sway function
+    struct Harmonic {
+        float w;
+        float p;
+    };
+
+    auto sway_function = [](const std::vector<Harmonic>& harmonics,
+                            float t) -> float {
+        float offset = 0.0f;
+        for (Harmonic harmonic : harmonics) {
+            offset += sin(harmonic.w * t + harmonic.p);
+        }
+        return offset;
+    };
+
+    std::vector<Harmonic> harmonics = {
+        {1.0f, 0.0f},
+        {0.25f, 0.5f},
+        {4.0f, 2.0f},
+        {1.26f, -6.0f},
+    };
 
     while (window.is_open()) {
         window.poll_events();
@@ -232,11 +261,12 @@ int main() {
                 push_array(fps_over_time, 64, fps);
                 next_fps_update = fixed_timer.get_time() + fps_update_interval;
             }
+            ImGui::Text("grass blade count: %zu", grass_transforms.size());
             ImGui::Text("FPS: %d", fps);
             ImGui::PlotLines("FPS over time", fps_over_time, 64);
             ImGui::SliderFloat("angle", &camera_angle, 0.0f, 360.0f);
-            ImGui::SliderFloat("height", &camera_height, 2.0f, 12.0f);
-            ImGui::SliderFloat("distance", &camera_distance, 5.0f, 50.0f);
+            ImGui::SliderFloat("height", &camera_height, 2.0f, 48.0f);
+            ImGui::SliderFloat("distance", &camera_distance, 5.0f, 100.0f);
             ImGui::End();
         }
 
@@ -248,8 +278,7 @@ int main() {
         camera.look_at(glm::vec3(0.0f, 0.0f, 0.0f));
         renderer.set_camera(camera);
         gpu_instancing_shader.set_uniform_float(
-            "offset", sin(fixed_timer.get_time() * 4.0f) +
-                          sin(fixed_timer.get_time() * 2.5f));
+            "offset", sway_function(harmonics, fixed_timer.get_time()));
 
         // render
         glClearColor(fog_color.r, fog_color.g, fog_color.b, 1.0f);
@@ -258,16 +287,15 @@ int main() {
         renderer.draw_instances(grass_mesh, grass_buffer, gpu_instancing_shader,
                                 grass_transforms.size());
 
-        renderer.draw(
-            ground_mesh,
-            glm::scale(glm::mat4(1.0f), glm::vec3(field_size * 20.0f)),
-            default_shader);
+        renderer.draw(ground_mesh,
+                      glm::scale(glm::mat4(1.0f), glm::vec3(200.0f)),
+                      default_shader);
 
-        renderer.draw(
-            cube_mesh,
-            glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 2.5f, 0.0f)) *
-                glm::scale(glm::mat4(1.0f), glm::vec3(1.0f, 2.5f, 1.0f)),
-            default_shader);
+        // renderer.draw(
+        //     cube_mesh,
+        //     glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 4.0f, 0.0f)) *
+        //         glm::scale(glm::mat4(1.0f), glm::vec3(1.25f, 4.0f, 1.25f)),
+        //     default_shader);
 
         // render imgui
         ImGui::Render();

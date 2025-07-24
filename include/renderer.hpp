@@ -29,35 +29,6 @@ class Camera {
     float m_far;
 };
 
-template <typename T> class ShaderBuffer {
-  public:
-    ShaderBuffer(const std::vector<T>& data);
-
-    ~ShaderBuffer();
-
-    GLuint get_id() const;
-
-  private:
-    GLuint m_shader_buffer_object;
-};
-
-template <typename T>
-ShaderBuffer<T>::ShaderBuffer(const std::vector<T>& data) {
-    glGenBuffers(1, &m_shader_buffer_object);
-    glBindBuffer(GL_SHADER_STORAGE_BUFFER, m_shader_buffer_object);
-    glBufferData(GL_SHADER_STORAGE_BUFFER, data.size() * sizeof(T), data.data(),
-                 GL_STATIC_DRAW);
-    glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
-}
-
-template <typename T> ShaderBuffer<T>::~ShaderBuffer() {
-    glDeleteBuffers(1, &m_shader_buffer_object);
-}
-
-template <typename T> GLuint ShaderBuffer<T>::get_id() const {
-    return m_shader_buffer_object;
-}
-
 class Renderer {
   public:
     Renderer();
