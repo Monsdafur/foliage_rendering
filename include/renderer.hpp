@@ -1,6 +1,6 @@
 #pragma once
 
-#include "glm/glm.hpp"
+#include "glm/ext/matrix_float4x4.hpp"
 #include "mesh.hpp"
 #include "shader.hpp"
 
@@ -57,19 +57,21 @@ void Renderer::draw_instances(const Mesh& mesh,
                               Shader& shader, int count, GLuint mode) {
 
     shader.set_uniform_matrix4("projection", m_camera_matrix);
+    shader.set_uniform_int("has_texture", mesh.get_texture() != nullptr);
 
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, shader_buffer.get_id());
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, shader_buffer.get_id());
 
     glUseProgram(shader.get_id());
-
     glBindVertexArray(mesh.get_vertex_array_id());
+    if (mesh.get_texture()) {
+        glBindTexture(GL_TEXTURE_2D, mesh.get_texture()->get_id());
+    }
 
     glDrawElementsInstanced(mode, mesh.get_indices().size(), GL_UNSIGNED_INT,
                             mesh.get_indices().data(), count);
 
     glBindVertexArray(0);
-
     glUseProgram(0);
 
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, 0);

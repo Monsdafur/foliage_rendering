@@ -1,7 +1,8 @@
 #pragma once
 
 #include "glad/glad.h"
-#include "glm/glm.hpp"
+#include "glm/ext/matrix_float4x4.hpp"
+#include "texture.hpp"
 #include <filesystem>
 
 template <typename T> class ShaderBuffer {
@@ -58,11 +59,18 @@ class Shader {
 
     void set_uniform_matrix4(const std::string& name, const glm::mat4& value);
 
+    void set_uniform_texture(const std::string& name, const Texture& texture,
+                             int index);
+
+    void flush_textures();
+
     GLuint get_id() const;
 
     template <typename T>
     void dispatch_buffer_data(ShaderBuffer<T>& buffer,
                               const glm::ivec3& work_groups);
+
+    void dispatch_texture(Texture& texture, const glm::ivec3& work_groups);
 
   private:
     GLuint m_id;

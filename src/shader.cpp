@@ -140,4 +140,33 @@ void Shader::set_uniform_matrix4(const std::string& name,
     glUseProgram(0);
 }
 
+void Shader::set_uniform_texture(const std::string& name,
+                                 const Texture& texture, int index) {
+    GLuint location = glGetUniformLocation(m_id, name.c_str());
+    glUseProgram(m_id);
+
+    glUniform1i(location, index);
+
+    glActiveTexture(GL_TEXTURE0 + index);
+    glBindTexture(GL_TEXTURE_2D, texture.get_id());
+}
+
+void Shader::flush_textures() {
+    glBindTexture(GL_TEXTURE_2D, 0);
+    glUseProgram(0);
+}
+
 GLuint Shader::get_id() const { return m_id; };
+
+void Shader::dispatch_texture(Texture& texture, const glm::ivec3& work_groups) {
+    glUseProgram(m_id);
+    glBindTexture(GL_TEXTURE_2D, texture.get_id());
+
+    glBindImageTexture(0, texture.get_id(), 0, GL_FALSE, 0, GL_READ_WRITE,
+                       GL_RGBA32F);
+    glDispatchCompute(work_groups.x, work_groups.y, work_groups.z);
+    glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+
+    glBindTexture(GL_TEXTURE_2D, 0);
+    glUseProgram(0);
+}

@@ -1,7 +1,4 @@
 #include "mesh.hpp"
-#include "glm/ext/matrix_float4x4.hpp"
-#include "glm/ext/matrix_transform.hpp"
-#include "glm/gtc/quaternion.hpp"
 
 Mesh::Mesh(std::vector<Vertex>& vertices, std::vector<int>& indices)
     : m_vertices(std::move(vertices)), m_indices(std::move(indices)) {
@@ -14,12 +11,15 @@ Mesh::Mesh(std::vector<Vertex>& vertices, std::vector<int>& indices)
 
     glVertexAttribPointer(0, 3, GL_FLOAT, 0, sizeof(Vertex), (void*)0);
     glEnableVertexAttribArray(0);
-    glVertexAttribPointer(1, 3, GL_FLOAT, 0, sizeof(Vertex),
+    glVertexAttribPointer(1, 2, GL_FLOAT, 0, sizeof(Vertex),
                           (void*)sizeof(glm::vec3));
     glEnableVertexAttribArray(1);
     glVertexAttribPointer(2, 3, GL_FLOAT, 0, sizeof(Vertex),
-                          (void*)(2 * sizeof(glm::vec3)));
+                          (void*)(sizeof(glm::vec3) + sizeof(glm::vec2)));
     glEnableVertexAttribArray(2);
+    glVertexAttribPointer(3, 3, GL_FLOAT, 0, sizeof(Vertex),
+                          (void*)(2 * sizeof(glm::vec3) + sizeof(glm::vec2)));
+    glEnableVertexAttribArray(3);
 
     glBufferData(GL_ARRAY_BUFFER, m_vertices.size() * sizeof(Vertex),
                  m_vertices.data(), GL_STATIC_DRAW);
@@ -50,3 +50,9 @@ GLuint Mesh::get_vertex_buffer_id() const { return m_vertex_buffer; }
 const std::vector<Vertex>& Mesh::get_vertices() const { return m_vertices; }
 
 const std::vector<int>& Mesh::get_indices() const { return m_indices; }
+
+std::shared_ptr<const Texture> Mesh::get_texture() const { return m_texture; }
+
+void Mesh::set_texture(std::shared_ptr<const Texture> texture) {
+    m_texture = texture;
+}

@@ -23,7 +23,7 @@ class Texture {
 
     glm::ivec2 get_size() const;
 
-    GLuint get_id();
+    GLuint get_id() const;
 
   protected:
     GLuint m_id;

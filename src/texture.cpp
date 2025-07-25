@@ -70,7 +70,7 @@ void Texture::set_wrap_mode(GLuint mode) {
     glBindTexture(GL_TEXTURE_2D, 0);
 }
 
-GLuint Texture::get_id() { return m_id; }
+GLuint Texture::get_id() const { return m_id; }
 
 glm::ivec2 Texture::get_size() const { return m_size; }
 
