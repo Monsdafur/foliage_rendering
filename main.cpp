@@ -79,27 +79,27 @@ int main() {
 
     // load shaders
     Shader default_shader;
-    default_shader.load_shader_from_path("resources/shaders/default.vert",
-                                         GL_VERTEX_SHADER);
-    default_shader.load_shader_from_path("resources/shaders/default.frag",
-                                         GL_FRAGMENT_SHADER);
+    default_shader.load_shader_from_path(
+        "resources/shaders/default_vertex.glsl", GL_VERTEX_SHADER);
+    default_shader.load_shader_from_path(
+        "resources/shaders/default_fragment.glsl", GL_FRAGMENT_SHADER);
 
     Shader gpu_instancing_shader;
     gpu_instancing_shader.load_shader_from_path(
-        "resources/shaders/gpu_instancing.vert", GL_VERTEX_SHADER);
+        "resources/shaders/gpu_instancing.glsl", GL_VERTEX_SHADER);
     gpu_instancing_shader.load_shader_from_path(
-        "resources/shaders/default.frag", GL_FRAGMENT_SHADER);
+        "resources/shaders/default_fragment.glsl", GL_FRAGMENT_SHADER);
 
     Shader field_generator_shader;
     field_generator_shader.load_shader_from_path(
-        "resources/shaders/field_generator.comp", GL_COMPUTE_SHADER);
+        "resources/shaders/field_generator.glsl", GL_COMPUTE_SHADER);
 
     Shader sine_map_shader;
-    sine_map_shader.load_shader_from_path("resources/shaders/sine_map.comp",
+    sine_map_shader.load_shader_from_path("resources/shaders/sine_map.glsl",
                                           GL_COMPUTE_SHADER);
 
     Shader displacement;
-    displacement.load_shader_from_path("resources/shaders/displacement.comp",
+    displacement.load_shader_from_path("resources/shaders/displacement.glsl",
                                        GL_COMPUTE_SHADER);
 
     default_shader.set_uniform_vector3("light_direction", light_direction);
