@@ -419,28 +419,6 @@ int main() {
     Timer fixed_timer;
     float delta_time = 0.016f;
 
-    // sway function
-    struct Harmonic {
-        float w;
-        float p;
-    };
-
-    auto sway_function = [](const std::vector<Harmonic>& harmonics,
-                            float t) -> float {
-        float offset = 0.0f;
-        for (Harmonic harmonic : harmonics) {
-            offset += sin(harmonic.w * t + harmonic.p);
-        }
-        return offset;
-    };
-
-    std::vector<Harmonic> harmonics = {
-        {1.0f, 0.0f},
-        {0.25f, 0.5f},
-        {4.0f, 2.0f},
-        {1.26f, -6.0f},
-    };
-
     while (window.is_open()) {
         window.poll_events();
         if (input->is_key_pressed(GLFW_KEY_ESCAPE)) {
@@ -491,9 +469,6 @@ int main() {
                                                   camera.get_position());
         default_shader.set_uniform_float("fog_bias", fog_bias);
         gpu_instancing_shader.set_uniform_float("fog_bias", fog_bias);
-        gpu_instancing_shader.set_uniform_float(
-            "offset",
-            sway_function(harmonics, fixed_timer.get_time() * wind_speed));
 
         sine_map_shader.set_uniform_float("shift",
                                           fixed_timer.get_time() * wind_speed);

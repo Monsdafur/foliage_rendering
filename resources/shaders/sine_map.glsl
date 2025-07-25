@@ -13,7 +13,7 @@ void main() {
     float s = wind_direction.y;
 	float x = c * texel_coord.x + s * texel_coord.y;
 
-    vec3 value = vec3((sin(x * 0.05f + shift) / 2.0 + 0.5));
+    vec3 value = vec3((sin(x * 0.1 + shift) / 2.0 + 0.5));
 	
     imageStore(image_output, texel_coord, vec4(value, 1.0));
 }
