@@ -21,7 +21,7 @@ void main() {
     if (id.x < width && id.y < height) {
         uint index = id.y * uint(width) + id.x;
         vec2 uv = vec2(float(id.x) / float(width), float(id.y) / float(height));
-        grass_buffer[index].sway[0][1] = grass_buffer[index].sway[0][0] * (texture(noise_map, uv).r - 0.5f);
+        grass_buffer[index].sway[0][1] = grass_buffer[index].sway[0][0] * (texture(noise_map, uv).r - 0.5);
         grass_buffer[index].sway[1][1] = texture(noise_map, uv).r;
     }
 }
