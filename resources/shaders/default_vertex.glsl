@@ -18,11 +18,12 @@ void main()
     world_frag_position = world_position.xyz;
     gl_Position = projection *  world_position;
     normal = normalize(mat3(transpose(inverse(transform))) * a_normal);
-    if (dot(normal, vec3(0.0, 1.0, 0.0)) < 0.2) {
+    /*if (dot(normal, vec3(0.0, 1.0, 0.0)) < 0.2) {
         color = a_color * clamp(world_position.y, 0.125, 1.0);
     }
     else {
         color = a_color;
-    }
+    }*/
+    color = a_color;
     uv = a_uv;
 }

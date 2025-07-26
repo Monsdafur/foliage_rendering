@@ -14,6 +14,13 @@ Camera::Camera(const glm::vec3& position, float fov, float aspect_ratio,
     m_up = glm::vec3(0.0f, 1.0f, 0.0f);
 }
 
+Camera::Camera(const glm::vec3& position, glm::vec2 size, float near, float far)
+    : m_position(position), m_near(near), m_far(far) {
+    m_projection = glm::ortho(-size.x, size.x, -size.y, size.y, m_near, m_far);
+    m_direction = glm::vec3(0.0f, 0.0f, -1.0f);
+    m_up = glm::vec3(0.0f, 1.0f, 0.0f);
+}
+
 glm::vec3 Camera::get_position() const { return m_position; }
 
 void Camera::set_position(const glm::vec3& position) { m_position = position; }

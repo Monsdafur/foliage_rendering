@@ -43,4 +43,5 @@ class RenderTexture : public Texture {
 
   private:
     GLuint m_frame_buffer;
+    GLuint m_render_buffer;
 };

@@ -82,10 +82,18 @@ RenderTexture::RenderTexture(const glm::ivec2& size, GLuint format)
     glBindFramebuffer(GL_FRAMEBUFFER, m_frame_buffer);
     gl_check_error();
 
+    glGenRenderbuffers(1, &m_render_buffer);
+    glBindRenderbuffer(GL_RENDERBUFFER, m_render_buffer);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, size.x, size.y);
+    glBindRenderbuffer(GL_RENDERBUFFER, 0);
+
     load_texture_from_byte(0, GL_UNSIGNED_BYTE, size, format, format);
-    gl_check_error();
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D,
                            m_id, 0);
+
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT,
+                              GL_RENDERBUFFER, m_render_buffer);
+
     gl_check_error();
 
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
