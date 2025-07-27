@@ -1,7 +1,8 @@
 #include "mesh.hpp"
 
-Mesh::Mesh(std::vector<Vertex>& vertices, std::vector<int>& indices)
-    : m_vertices(std::move(vertices)), m_indices(std::move(indices)) {
+void Mesh::set(std::vector<Vertex>& vertices, std::vector<int>& indices) {
+    m_vertices = std::move(vertices);
+    m_indices = std::move(indices);
     glGenVertexArrays(1, &m_vertex_array);
     glBindVertexArray(m_vertex_array);
 

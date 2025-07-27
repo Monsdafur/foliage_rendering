@@ -3,6 +3,7 @@
 #include "glad/glad.h"
 #include "glm/ext/matrix_clip_space.hpp"
 #include "glm/ext/matrix_transform.hpp"
+#include "glm/ext/vector_float3.hpp"
 #include "glm/geometric.hpp"
 #include <iostream>
 
@@ -23,17 +24,29 @@ Camera::Camera(const glm::vec3& position, glm::vec2 size, float near, float far)
 
 glm::vec3 Camera::get_position() const { return m_position; }
 
+glm::vec3 Camera::get_direction() const { return m_direction; }
+
 void Camera::set_position(const glm::vec3& position) { m_position = position; }
 
 void Camera::look_at(const glm::vec3 position) {
     m_direction = glm::normalize(position - m_position);
-    m_up = glm::cross(glm::cross(m_direction, glm::vec3(0.0f, 1.0f, 0.0f)),
-                      m_direction);
+    if (abs(glm::dot(m_direction, glm::vec3(0.0f, 1.0f, 0.0f))) == 1.0f) {
+        m_up = glm::vec3(0.0f, 0.0f, 1.0f);
+    } else {
+        m_up = glm::vec3(0.0f, 1.0f, 0.0f);
+    }
 }
 
 glm::mat4 Camera::get_matrix() const {
     return m_projection *
            glm::lookAt(m_position, m_position + m_direction, m_up);
+}
+
+glm::mat4 Camera::get_projection() const { return m_projection; }
+
+glm::mat4 Camera::get_transform() const {
+    return glm::inverse(
+        glm::lookAt(m_position, m_position + m_direction, m_up));
 }
 
 float Camera::get_near_clip_plane() const { return m_near; }

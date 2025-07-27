@@ -15,6 +15,7 @@ uniform float bias;
 uniform float view_distance;
 uniform float fog_bias;
 uniform vec3 fog_color;
+uniform int disable_fog;
 
 void main()
 {
@@ -26,10 +27,15 @@ void main()
     float diffuse = max(-dot(normal, normalize(light_direction)), bias);
     texture_color *= diffuse;
     
-    float distance = length(camera_position - world_frag_position);
-    float exp = clamp((distance / view_distance) + fog_bias, 0.0, 1.0);
-    float value = pow(4.0, exp);
-    float visibility = clamp(exp, 0.0, 1.0);
+    float conceal = 0.0;
 
-    FragColor = vec4(vec3(mix(texture_color, fog_color, visibility)), 1.0);
+    if (disable_fog == 0) {
+        float distance = length(camera_position - world_frag_position);
+        float d = max(distance - view_distance * fog_bias, 0.0);
+        float exp = d / (view_distance * (1.0 - fog_bias));
+        float value = pow(4.0, exp);
+        conceal = clamp(exp * exp, 0.0, 1.0);
+    }
+
+    FragColor = vec4(vec3(mix(texture_color, fog_color, conceal)), 1.0);
 }

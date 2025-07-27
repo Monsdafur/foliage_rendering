@@ -15,11 +15,17 @@ class Camera {
 
     glm::vec3 get_position() const;
 
+    glm::vec3 get_direction() const;
+
     void set_position(const glm::vec3& position);
 
     void look_at(const glm::vec3 position);
 
     glm::mat4 get_matrix() const;
+
+    glm::mat4 get_projection() const;
+
+    glm::mat4 get_transform() const;
 
     float get_near_clip_plane() const;
 

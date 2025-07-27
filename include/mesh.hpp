@@ -14,9 +14,11 @@ struct Vertex {
 
 class Mesh {
   public:
-    Mesh(std::vector<Vertex>& vertices, std::vector<int>& indices);
+    Mesh() = default;
 
     ~Mesh();
+
+    void set(std::vector<Vertex>& vertices, std::vector<int>& indices);
 
     GLuint get_vertex_array_id() const;
 

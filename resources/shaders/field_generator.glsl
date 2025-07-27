@@ -73,11 +73,9 @@ void main() {
     if (id.x < width && id.y < height) {
         int index = int(id.y) * width + int(id.x);
 
-        float offset_theta = random_range(id, 0.0, 3.14159 * 2.0);
         vec3 offset;
-        offset.x = cos(offset_theta);
-        offset.z = sin(offset_theta);
-        offset *= spacing;
+        offset.x = random_range(id, 0.0, spacing);
+        offset.z = random_range(id + vec2(1.0), 0.0, spacing);
 
         vec3 position = uniform_position + offset;
         mat4 rotation = rotation_y(random_range(id, 0.0, 3.14159 * 2.0));
@@ -85,11 +83,14 @@ void main() {
         vec2 uv = vec2((position.x - lower_bound.x) / (upper_bound.x - lower_bound.x),
                        (position.z - lower_bound.z) / (upper_bound.z - lower_bound.z));
 
+        uv.x = clamp(uv.x, 0.0, 1.0);
+        uv.y = clamp(uv.y, 0.0, 1.0);
+
         position.y = texture(height_map, uv).r * terrain_scale;
         grass_buffer[index].transform = translate(position) * 
                                         rotation *
                                         scale(vec3(1.0, random_range(id, 1.0, 4.0), 1.0));
-        grass_buffer[index].sway[0][0] = 2.0;
+        grass_buffer[index].sway[0][0] = 1.0;
         grass_buffer[index].sway[3][0] = uv.x;
         grass_buffer[index].sway[3][1] = uv.y;
         grass_buffer[index].sway[3][2] = position.y;

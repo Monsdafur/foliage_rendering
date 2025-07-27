@@ -5,6 +5,7 @@ layout(rgba32f, binding = 0) uniform image2D image_output;
 
 uniform float shift;
 uniform vec2 wind_direction;
+uniform vec2 offset;
 
 float hash(float p) { 
     p = fract(p * 0.011); 
@@ -36,7 +37,7 @@ void main() {
     float theta = 0.25;
     float c = wind_direction.x;
     float s = wind_direction.y;
-    vec2 position = (vec2(texel_coord));
+    vec2 position = vec2(texel_coord) + offset;
 	float x = c * position.x + s * position.y;
 	float y = -s * position.x + c * position.y;
 

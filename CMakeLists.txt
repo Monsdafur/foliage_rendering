@@ -26,6 +26,7 @@ add_library(foliage_render STATIC
             src/window.cpp
             src/renderer.cpp
             src/mesh.cpp
+            src/chunk.cpp
             )
 target_include_directories(foliage_render PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_include_directories(foliage_render PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/external/PerlinNoise)

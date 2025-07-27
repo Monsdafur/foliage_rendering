@@ -170,3 +170,10 @@ void Shader::dispatch_texture(Texture& texture, const glm::ivec3& work_groups) {
     glBindTexture(GL_TEXTURE_2D, 0);
     glUseProgram(0);
 }
+
+void Shader::dispatch(const glm::ivec3& work_groups) {
+    glUseProgram(m_id);
+    glDispatchCompute(work_groups.x, work_groups.y, work_groups.z);
+    glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+    glUseProgram(0);
+}

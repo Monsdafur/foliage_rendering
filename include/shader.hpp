@@ -7,9 +7,11 @@
 
 template <typename T> class ShaderBuffer {
   public:
-    ShaderBuffer(const std::vector<T>& data);
+    ShaderBuffer() = default;
 
     ~ShaderBuffer();
+
+    void load_data(const std::vector<T>& data);
 
     GLuint get_id() const;
 
@@ -18,7 +20,7 @@ template <typename T> class ShaderBuffer {
 };
 
 template <typename T>
-ShaderBuffer<T>::ShaderBuffer(const std::vector<T>& data) {
+void ShaderBuffer<T>::load_data(const std::vector<T>& data) {
     glGenBuffers(1, &m_shader_buffer_object);
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, m_shader_buffer_object);
     glBufferData(GL_SHADER_STORAGE_BUFFER, data.size() * sizeof(T), data.data(),
@@ -66,9 +68,9 @@ class Shader {
 
     GLuint get_id() const;
 
-    template <typename T>
-    void dispatch_buffer_data(ShaderBuffer<T>& buffer,
-                              const glm::ivec3& work_groups);
+    template <typename T> void set_buffer(ShaderBuffer<T>& buffer, int index);
+
+    void dispatch(const glm::ivec3& work_groups);
 
     void dispatch_texture(Texture& texture, const glm::ivec3& work_groups);
 
@@ -80,15 +82,8 @@ class Shader {
 };
 
 template <typename T>
-void Shader::dispatch_buffer_data(ShaderBuffer<T>& buffer,
-                                  const glm::ivec3& work_groups) {
+void Shader::set_buffer(ShaderBuffer<T>& buffer, int index) {
     glUseProgram(m_id);
-    glBindBuffer(GL_SHADER_STORAGE_BUFFER, buffer.get_id());
-
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, buffer.get_id());
-    glDispatchCompute(work_groups.x, work_groups.y, work_groups.z);
-    glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
-
-    glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
     glUseProgram(0);
 }
