@@ -11,30 +11,31 @@ struct GrassBuffer {
 
 class Chunk {
   public:
-    Chunk(const Mesh& grass_mesh, Shader& generator, glm::ivec3 position,
-          int grass_per_unit, int size);
+    Chunk(const Mesh& grass_mesh, const Mesh& grass_mesh_low_poly,
+          Shader& generator, glm::ivec3 position, int grass_per_unit, int size);
 
     void update(Shader& flow_field, Shader& displacement, float wind_direction,
                 float time);
 
-    void render(Renderer& renderer, Shader& standard, Shader& gpu_instancing);
+    void render(Renderer& renderer, Shader& standard, Shader& gpu_instancing,
+                bool debug = false);
 
     void frustum_test(const Camera& camera);
-
-    Mesh m_ground;
 
     static int grass_count;
 
   private:
-    glm::ivec3 m_position;
-
     const Mesh& m_grass_mesh;
+    const Mesh& m_grass_mesh_low_poly;
+    Mesh m_ground;
+    Mesh m_ground_low_poly;
 
     int m_size;
     int m_grass_count;
     int m_grass_per_unit;
 
     bool m_cull = false;
+    bool m_far = false;
 
     ShaderBuffer<GrassBuffer> m_grass_buffer;
     Texture m_height_map;

@@ -26,7 +26,7 @@ void main()
 {
     float offset = grass_buffer[gl_InstanceID].sway[0][1] * 2.0 - 1.0;
     vec4 vector_offset = vec4(wind_direction.x, 0.0f, wind_direction.y, 0.0f) * offset;
-    vec4 world_position = (grass_buffer[gl_InstanceID].transform * vec4(a_position, 1.0f)) + vector_offset * a_position.y;
+    vec4 world_position = (grass_buffer[gl_InstanceID].transform * vec4(a_position, 1.0f)) + vector_offset * (pow(2.0, a_position.y) - 1.0);
     world_frag_position = world_position.xyz;
     gl_Position = projection *  world_position;
     normal = normalize(mat3(transpose(inverse(grass_buffer[gl_InstanceID].transform))) * a_normal);
