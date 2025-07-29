@@ -42,8 +42,8 @@ void main() {
 	float y = -s * position.x + c * position.y;
 
     float h = sin(x * 0.03 + shift) * 0.2 + 0.3;
-    h += noise(((vec2(texel_coord) * 0.1) + wind_direction * shift)) * 0.125 - 0.0625;
-    h += noise(((vec2(texel_coord) * 0.06) + wind_direction * shift)) * 0.3 - 0.15;
+    h += noise(((position * 0.1) + wind_direction * shift)) * 0.125 - 0.0625;
+    h += noise(((position * 0.06) + wind_direction * shift)) * 0.3 - 0.15;
     h = clamp(h, 0.0, 1.0);
 	
     imageStore(image_output, texel_coord, vec4(h, h, h, 1.0));
