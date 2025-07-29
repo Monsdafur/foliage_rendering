@@ -70,29 +70,31 @@ mat4 rotation_y(float r) {
 void main() {
     uvec2 id = gl_GlobalInvocationID.xy;
     vec3 uniform_position = lower_bound + vec3(id.x, 0.0, id.y) * spacing;
+    vec2 seed = vec2(id) + vec2(lower_bound.xz);
     if (id.x < width && id.y < height) {
         int index = int(id.y) * width + int(id.x);
 
         vec3 offset;
-        offset.x = random_range(id, 0.0, spacing);
-        offset.z = random_range(id + vec2(1.0), 0.0, spacing);
+        offset.x = random_range(seed, 0.0, spacing);
+        offset.z = random_range(seed + vec2(1.0), 0.0, spacing);
 
         vec3 position = uniform_position + offset;
-        mat4 rotation = rotation_y(random_range(id, 0.0, 3.14159 * 2.0));
+        mat4 rotation = rotation_y(random_range(seed, 0.0, 3.14159 * 2.0));
 
         vec2 uv = vec2((position.x - lower_bound.x) / (upper_bound.x - lower_bound.x),
                        (position.z - lower_bound.z) / (upper_bound.z - lower_bound.z));
 
         uv.x = clamp(uv.x, 0.0, 1.0);
         uv.y = clamp(uv.y, 0.0, 1.0);
+        float height = random_range(seed, 1.0, 4.0);
 
         position.y = texture(height_map, uv).r * terrain_scale;
         grass_buffer[index].transform = translate(position) * 
                                         rotation *
-                                        scale(vec3(1.0, random_range(id, 1.0, 4.0), 1.0));
+                                        scale(vec3(1.0, height, 1.0));
         grass_buffer[index].sway[0][0] = 1.0;
         grass_buffer[index].sway[3][0] = uv.x;
         grass_buffer[index].sway[3][1] = uv.y;
-        grass_buffer[index].sway[3][2] = position.y;
+        grass_buffer[index].sway[3][2] = height;
     }
 }

@@ -6,86 +6,113 @@
 #include "glm/matrix.hpp"
 #include "mesh.hpp"
 #include "utility.hpp"
+#include <cstdint>
 
 int Chunk::grass_count = 0;
 
-Chunk::Chunk(const Mesh& grass_mesh, const Mesh& grass_mesh_low_poly,
-             Shader& generator, glm::ivec3 position, int grass_per_unit,
-             int size)
-    : m_grass_mesh(grass_mesh), m_grass_mesh_low_poly(grass_mesh_low_poly),
-      m_size(size), m_grass_per_unit(grass_per_unit) {
+Chunk::Chunk(const Mesh& grass_mesh, Shader& generator, glm::ivec3 position,
+             int grass_per_unit, int size, float terrain_height,
+             float terrain_scale, uint64_t seed)
+    : m_grass_mesh(grass_mesh), m_size(size), m_grass_per_unit(grass_per_unit) {
     m_grass_count = m_size * m_size * grass_per_unit * grass_per_unit;
     grass_count += m_grass_count;
     m_min = glm::vec3(position) * (float)size;
     m_max = m_min + glm::vec3(m_size, 0.0f, m_size);
 
-    float scale = 20.0f;
-    int indices = 0;
-    uint8_t bytes[m_size * m_size * 3];
+    uint8_t bytes[(m_size + 1) * (m_size + 1) * 3];
     std::vector<Vertex> ground_vertices;
+    std::vector<Vertex> ground_vertices_low_poly;
     std::vector<int> ground_indices;
+    std::vector<int> ground_indices_low_poly;
 
-    const siv::PerlinNoise::seed_type seed = 123456u;
+    const siv::PerlinNoise::seed_type seed_type = seed;
+    const siv::PerlinNoise perlin{seed_type};
 
-    const siv::PerlinNoise perlin{seed};
+    m_min.y = 10000.0f;
+    m_max.y = -10000.0f;
 
-    m_min.y = 100.0f;
-    m_max.y = -100.0f;
-    for (int x = 0; x < m_size; ++x) {
-        for (int y = 0; y < m_size; ++y) {
-            int x0 = m_min.x + x;
-            int y0 = m_min.z + y;
-            int x1 = x0 + 1;
-            int y1 = y0 + 1;
-            // float height = sin(x * 0.25f);
-            float h0 =
-                perlin.octave2D_01((x1 * 0.01f), (y1 * 0.01f), 4) * scale;
-            float h1 =
-                perlin.octave2D_01((x1 * 0.01f), (y0 * 0.01f), 4) * scale;
-            float h2 =
-                perlin.octave2D_01((x0 * 0.01f), (y0 * 0.01f), 4) * scale;
-            float h3 =
-                perlin.octave2D_01((x0 * 0.01f), (y1 * 0.01f), 4) * scale;
-            glm::vec3 v0(x1, h0, y1);
-            glm::vec3 v1(x1, h1, y0);
-            glm::vec3 v2(x0, h2, y0);
-            glm::vec3 v3(x0, h3, y1);
-            glm::vec3 n0 = glm::normalize(glm::cross(v1 - v0, v3 - v0));
-            glm::vec3 n1 = glm::normalize(glm::cross(v2 - v1, v0 - v1));
-            glm::vec3 n2 = glm::normalize(glm::cross(v3 - v2, v1 - v2));
-            glm::vec3 n3 = glm::normalize(glm::cross(v0 - v3, v2 - v3));
-            glm::vec3 color(0.07f, 0.12f, 0.0f);
-            ground_vertices.push_back({v0, {0.0f, 0.0f}, n0, color});
-            ground_vertices.push_back({v1, {0.0f, 0.0f}, n1, color});
-            ground_vertices.push_back({v2, {0.0f, 0.0f}, n2, color});
-            ground_vertices.push_back({v3, {0.0f, 0.0f}, n3, color});
-            ground_indices.push_back(indices);
-            ground_indices.push_back(indices + 1);
-            ground_indices.push_back(indices + 2);
-            ground_indices.push_back(indices);
-            ground_indices.push_back(indices + 2);
-            ground_indices.push_back(indices + 3);
-            indices += 4;
+    for (int x = 0; x <= m_size; ++x) {
+        for (int z = 0; z <= m_size; ++z) {
+            glm::vec3 position = m_min + glm::vec3(x, 0.0f, z);
+            position.y = perlin.octave2D_01(position.x * terrain_scale,
+                                            position.z * terrain_scale, 14) *
+                         terrain_height;
 
-            int color_index = (x + m_size * y) * 3;
-            bytes[color_index] = (h2 / scale) * 255.0f;
-            bytes[color_index + 1] = (h2 / scale) * 255.0f;
-            bytes[color_index + 2] = (h2 / scale) * 255.0f;
+            if (x < m_size && z < m_size) {
+                int s = m_size + 1;
+                ground_indices.push_back(x + s * z);
+                ground_indices.push_back((x + 1) + s * z);
+                ground_indices.push_back(x + s * (z + 1));
 
-            m_min.y = fmin(fmin(fmin(fmin(m_min.y, h0), h1), h2), h3);
-            m_max.y = fmax(fmax(fmax(fmax(m_max.y, h0), h1), h2), h3);
+                ground_indices.push_back((x + 1) + s * z);
+                ground_indices.push_back((x + 1) + s * (z + 1));
+                ground_indices.push_back(x + s * (z + 1));
+            }
+
+            glm::vec3 p0 = position + glm::vec3(1.0f, 0.0f, 0.0f);
+            glm::vec3 p1 = position + glm::vec3(-1.0f, 0.0f, 0.0f);
+            glm::vec3 p2 = position + glm::vec3(0.0f, 0.0f, 1.0f);
+            glm::vec3 p3 = position + glm::vec3(0.0f, 0.0f, -1.0f);
+
+            p0.y = perlin.octave2D_01(p0.x * terrain_scale,
+                                      p0.z * terrain_scale, 14) *
+                   terrain_height;
+            p1.y = perlin.octave2D_01(p1.x * terrain_scale,
+                                      p1.z * terrain_scale, 14) *
+                   terrain_height;
+            p2.y = perlin.octave2D_01(p2.x * terrain_scale,
+                                      p2.z * terrain_scale, 14) *
+                   terrain_height;
+            p3.y = perlin.octave2D_01(p3.x * terrain_scale,
+                                      p3.z * terrain_scale, 14) *
+                   terrain_height;
+
+            float h0 = p0.y - p1.y;
+            float h1 = p2.y - p3.y;
+            glm::vec3 n = glm::normalize(glm::vec3(-h0, -h1, -1.0f));
+
+            ground_vertices.push_back(
+                {position, {0.0f, 0.0f}, n, {0.06f, 0.12f, 0.0f}});
+
+            m_min.y = fmin(m_min.y, position.y);
+            m_max.y = fmax(m_max.y, position.y);
+
+            int ci = (x + (m_size + 1) * z) * 3;
+            float d = position.y / terrain_height;
+            bytes[ci + 0] = (uint8_t)(d * 255.0f);
+            bytes[ci + 1] = (uint8_t)(d * 255.0f);
+            bytes[ci + 2] = (uint8_t)(d * 255.0f);
         }
     }
     m_max.y += 4.0f;
 
+    for (int x = 0; x <= m_size / 4; ++x) {
+        for (int z = 0; z <= m_size / 4; ++z) {
+            int i = (x * 4 + (m_size + 1) * z * 4);
+            ground_vertices_low_poly.push_back(ground_vertices[i]);
+            if (x < m_size / 4 && z < m_size / 4) {
+                int s = m_size / 4 + 1;
+                ground_indices_low_poly.push_back(x + s * (z + 1));
+                ground_indices_low_poly.push_back((x + 1) + s * z);
+                ground_indices_low_poly.push_back(x + s * z);
+
+                ground_indices_low_poly.push_back(x + s * (z + 1));
+                ground_indices_low_poly.push_back((x + 1) + s * (z + 1));
+                ground_indices_low_poly.push_back((x + 1) + s * z);
+            }
+        }
+    }
+
     // printf("lx: %.1f, ly: %.1f, lz: %.1f\n", m_min.x, m_min.y, m_min.z);
     // printf("hx: %.1f, hy: %.1f, hz: %.1f\n", m_max.x, m_max.y, m_max.z);
 
-    m_height_map.load_texture_from_byte(
-        bytes, GL_UNSIGNED_BYTE, glm::ivec2(m_size, m_size), GL_RGB, GL_RGB);
+    m_height_map.load_texture_from_byte(bytes, GL_UNSIGNED_BYTE,
+                                        glm::ivec2(m_size + 1, m_size + 1),
+                                        GL_RGB, GL_RGB);
     m_height_map.set_filter_mode(GL_LINEAR);
     m_height_map.set_wrap_mode(GL_CLAMP_TO_EDGE);
     m_ground.set(ground_vertices, ground_indices);
+    m_ground_low_poly.set(ground_vertices_low_poly, ground_indices_low_poly);
 
     std::vector<GrassBuffer> grass(m_grass_count);
     m_grass_buffer.load_data(grass);
@@ -95,12 +122,13 @@ Chunk::Chunk(const Mesh& grass_mesh, const Mesh& grass_mesh_low_poly,
     generator.set_uniform_vector3("lower_bound", m_min);
     generator.set_uniform_vector3("upper_bound", m_max);
     generator.set_uniform_float("spacing", 1.0f / m_grass_per_unit);
-    generator.set_uniform_float("terrain_scale", scale);
+    generator.set_uniform_float("terrain_scale", terrain_height);
     generator.set_uniform_texture("height_map", m_height_map, 0);
 
     generator.set_buffer(m_grass_buffer, 0);
     generator.dispatch(
         glm::ivec3(m_size * m_grass_per_unit, m_size * m_grass_per_unit, 1));
+    gl_check_error();
     generator.flush_textures();
 
     m_noise_map.load_texture_from_byte(0, GL_FLOAT,
@@ -111,7 +139,7 @@ Chunk::Chunk(const Mesh& grass_mesh, const Mesh& grass_mesh_low_poly,
 
 void Chunk::update(Shader& flow_field, Shader& displacement,
                    float wind_direction, float time) {
-    if (m_cull) {
+    if (m_cull || m_far) {
         return;
     }
 
@@ -128,7 +156,6 @@ void Chunk::update(Shader& flow_field, Shader& displacement,
     displacement.set_buffer(m_grass_buffer, 0);
     displacement.dispatch(
         glm::ivec3(m_size * m_grass_per_unit, m_size * m_grass_per_unit, 1));
-    gl_check_error();
     displacement.flush_textures();
 }
 
@@ -138,19 +165,17 @@ void Chunk::render(Renderer& renderer, Shader& standard, Shader& gpu_instancing,
         return;
     }
 
-    renderer.draw(m_ground, glm::mat4(1.0f), standard);
-    if (0) {
-        if (!m_far) {
-            renderer.draw_instances(m_grass_mesh, m_grass_buffer,
-                                    gpu_instancing, m_grass_count);
-        } else {
-            renderer.draw_instances(m_grass_mesh_low_poly, m_grass_buffer,
-                                    gpu_instancing, m_grass_count);
-        }
-    }
+    renderer.draw(m_far ? m_ground_low_poly : m_ground, glm::mat4(1.0f),
+                  standard);
+    renderer.draw_instances(m_grass_mesh, m_grass_buffer, gpu_instancing,
+                            m_grass_count);
 }
 
 void Chunk::frustum_test(const Camera& camera) {
+    glm::vec3 d = camera.get_position() - (m_min + (m_max - m_min) * 0.5f);
+    float r = camera.get_far_clip_plane() * 0.85f;
+    m_far = glm::dot(d, d) > r * r;
+
     glm::vec4 planes[6];
 
     glm::mat4 mat = glm::transpose(camera.get_matrix());
@@ -181,7 +206,4 @@ void Chunk::frustum_test(const Camera& camera) {
             break;
         }
     }
-
-    glm::vec3 d = camera.get_position() - (m_min + (m_max - m_min) * 0.5f);
-    m_far = glm::dot(d, d) > 144.0f * 144.0f;
 }

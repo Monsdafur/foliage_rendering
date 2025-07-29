@@ -1,4 +1,3 @@
-#include "glad/glad.h"
 #include "glm/ext/vector_float3.hpp"
 #include "glm/ext/vector_float4.hpp"
 #include "glm/ext/vector_int3.hpp"
@@ -10,9 +9,9 @@
 #include "include/chunk.hpp"
 #include "include/mesh.hpp"
 #include "renderer.hpp"
+#include "texture.hpp"
 #include "window.hpp"
 #include <fstream>
-#include <iostream>
 #include <memory>
 #include <sstream>
 
@@ -95,8 +94,8 @@ int main() {
                   (float)window.get_size().x / (float)window.get_size().y, 0.1f,
                   200.0f);
 
-    Camera camera2(glm::vec3(100.0f, 200.0f, 100.0f), glm::vec2(256.0f), 0.1f,
-                   400.0f);
+    Camera camera2(glm::vec3(100.0f, 200.0f, 100.0f), window.get_size() / 4,
+                   0.1f, 400.0f);
 
     renderer.set_camera(camera);
     glViewport(0, 0, window.get_size().x, window.get_size().y);
@@ -105,18 +104,35 @@ int main() {
     window.set_input_handler(input);
 
     // scene settings
-    glm::vec3 light_direction(cos(glm::radians(135.0f)), -0.3f,
+    glm::vec3 light_direction(cos(glm::radians(135.0f)), -0.5f,
                               sin(glm::radians(135.0f)));
     float wind_direction = 315.0f;
     glm::vec3 fog_color(0.9f, 0.9f, 0.9f);
-    float fog_percent = 0.2f;
+    float fog_percent = 0.0f;
     float distance = 10.0f;
     float angle = 0.0f;
-    float height = 20.0f;
+    float height = 34.0f;
     bool auto_rotate = false;
     bool show_debug_view = false;
 
     // meshes data
+    std::vector<Vertex> screen_vertices = {{{1.0f, 1.0f, 0.0f},
+                                            {1.0f, 1.0f},
+                                            {0.0f, 0.0f, 1.0f},
+                                            {1.0f, 1.0f, 1.0f}},
+                                           {{-1.0f, 1.0f, 0.0f},
+                                            {0.0f, 1.0f},
+                                            {0.0f, 0.0f, 1.0f},
+                                            {1.0f, 1.0f, 1.0f}},
+                                           {{-1.0f, -1.0f, 0.0f},
+                                            {0.0f, 0.0f},
+                                            {0.0f, 0.0f, 1.0f},
+                                            {1.0f, 1.0f, 1.0f}},
+                                           {{1.0f, -1.0f, 0.0f},
+                                            {1.0f, 0.0f},
+                                            {0.0f, 0.0f, 1.0f},
+                                            {1.0f, 1.0f, 1.0f}}};
+    std::vector<int> screen_indices = {0, 1, 2, 0, 2, 3};
 
     glm::vec4 cube[8] = {
         glm::vec4(1.0f, 1.0f, 1.0f, 1.0f),
@@ -165,12 +181,12 @@ int main() {
     gpu_instancing_shader.load_shader_from_path(
         "resources/shaders/default_fragment.glsl", GL_FRAGMENT_SHADER);
 
-    Shader field_generator_shader;
-    field_generator_shader.load_shader_from_path(
-        "resources/shaders/field_generator.glsl", GL_COMPUTE_SHADER);
+    Shader grass_generation_shader;
+    grass_generation_shader.load_shader_from_path(
+        "resources/shaders/grass_generation.glsl", GL_COMPUTE_SHADER);
 
     Shader flow_field;
-    flow_field.load_shader_from_path("resources/shaders/sine_map.glsl",
+    flow_field.load_shader_from_path("resources/shaders/flow_field.glsl",
                                      GL_COMPUTE_SHADER);
 
     Shader displacement;
@@ -180,7 +196,7 @@ int main() {
     // shader settings
     default_shader.set_uniform_vector3("light_direction", light_direction);
     default_shader.set_uniform_vector3("fog_color", fog_color);
-    default_shader.set_uniform_float("bias", 0.5f);
+    default_shader.set_uniform_float("bias", 0.6f);
     default_shader.set_uniform_float("view_distance",
                                      camera.get_far_clip_plane());
     default_shader.set_uniform_float("flog_bias", fog_percent);
@@ -188,7 +204,7 @@ int main() {
     gpu_instancing_shader.set_uniform_vector3("light_direction",
                                               light_direction);
     gpu_instancing_shader.set_uniform_vector3("fog_color", fog_color);
-    gpu_instancing_shader.set_uniform_float("bias", 0.5f);
+    gpu_instancing_shader.set_uniform_float("bias", 0.6f);
     gpu_instancing_shader.set_uniform_float("view_distance",
                                             camera.get_far_clip_plane());
     gpu_instancing_shader.set_uniform_vector2(
@@ -198,8 +214,9 @@ int main() {
         "wind_direction", glm::vec2(cos(wind_direction), sin(wind_direction)));
 
     // init meshes
-    Mesh grass_mesh = load_model("resources/grass_model.txt");
-    Mesh grass_mesh_low_poly = load_model("resources/grass_model_low_poly.txt");
+    Mesh grass_mesh = load_model("resources/models/grass_model.txt");
+    Mesh screen_mesh;
+    screen_mesh.set(screen_vertices, screen_indices);
 
     Mesh frustum_mesh;
     frustum_mesh.set(view_frustum_vertices, view_frustum_indices);
@@ -208,14 +225,19 @@ int main() {
     for (int x = -8; x < 8; ++x) {
         for (int y = -8; y < 8; ++y) {
             std::shared_ptr<Chunk> chunk = std::make_shared<Chunk>(
-                grass_mesh, grass_mesh_low_poly, field_generator_shader,
-                glm::ivec3(x, 0, y), 2, 32);
+                grass_mesh, grass_generation_shader, glm::ivec3(x, 0, y), 2, 32,
+                34.0f, 0.01f, 0u);
             chunks.push_back(chunk);
         }
     }
     // textures
-    RenderTexture screen_texture(glm::vec3(512), GL_RGB);
-    screen_texture.set_filter_mode(GL_NEAREST);
+    std::shared_ptr<RenderTexture> screen_texture =
+        std::make_shared<RenderTexture>(window.get_size(), GL_RGB);
+    screen_texture->set_filter_mode(GL_NEAREST);
+    std::shared_ptr<RenderTexture> post_processing_texture =
+        std::make_shared<RenderTexture>(window.get_size(), GL_RGB);
+    post_processing_texture->set_filter_mode(GL_NEAREST);
+    screen_mesh.set_texture(post_processing_texture);
 
     // timer
     Timer fixed_timer;
@@ -238,7 +260,7 @@ int main() {
     ImGuiStyle& style = ImGui::GetStyle();
     style.Colors[ImGuiCol_WindowBg].w = 0.4f;
 
-    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+    // glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
     while (window.is_open()) {
         window.poll_events();
@@ -284,15 +306,22 @@ int main() {
             ImGui::SliderFloat("angle", &angle, 0.0f, 360.0f);
             ImGui::SliderFloat("distance", &distance, 5.0f, 32.0f * 8.0f);
             ImGui::SliderFloat("height", &height, 0.0f, 60.0f);
-            ImGui::SliderFloat("fog", &fog_percent, 0.0f, 1.0f);
             ImGui::Checkbox("auto rotate", &auto_rotate);
-            ImGui::Checkbox("show debug view", &show_debug_view);
-            if (show_debug_view) {
-                ImTextureID scene = screen_texture.get_id();
-                ImGui::Text("debug view");
-                ImGui::Image(scene, ImVec2(512.0f, 512.0f), ImVec2(0.0f, 1.0f),
-                             ImVec2(1.0f, 0.0f));
+            if (ImGui::Checkbox("show debug view", &show_debug_view)) {
+                if (show_debug_view) {
+                    screen_mesh.set_texture(screen_texture);
+                } else {
+                    screen_mesh.set_texture(post_processing_texture);
+                }
             }
+            // if (show_debug_view) {
+            //     ImTextureID scene = screen_texture.get_id();
+            //     ImGui::Text("debug view");
+            //     ImGui::Image(scene,
+            //                  ImVec2(screen_texture.get_size().x,
+            //                         screen_texture.get_size().y),
+            //                  ImVec2(0.0f, 1.0f), ImVec2(1.0f, 0.0f));
+            // }
             ImGui::End();
         }
 
@@ -304,16 +333,17 @@ int main() {
 
         // debug view
         if (show_debug_view) {
-            screen_texture.begin_draw();
+            screen_texture->begin_draw();
             glClearColor(0.9f, 0.9f, 0.9f, 1.0f);
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-            glViewport(0, 0, 512, 512);
+            glViewport(0, 0, screen_texture->get_size().x,
+                       screen_texture->get_size().y);
             renderer.set_camera(camera2);
 
-            default_shader.set_uniform_int("disable_fog", 0);
+            default_shader.set_uniform_int("disable_fog", 1);
             default_shader.set_uniform_vector3("camera_position",
                                                camera.get_position());
-            gpu_instancing_shader.set_uniform_int("disable_fog", 0);
+            gpu_instancing_shader.set_uniform_int("disable_fog", 1);
             gpu_instancing_shader.set_uniform_vector3("camera_position",
                                                       camera.get_position());
             for (std::shared_ptr<Chunk> chunk : chunks) {
@@ -324,24 +354,30 @@ int main() {
             renderer.draw(frustum_mesh, camera.get_transform(), single_color,
                           GL_LINES);
             glEnable(GL_CULL_FACE);
-            screen_texture.end_draw();
+            screen_texture->end_draw();
             glViewport(0, 0, window.get_size().x, window.get_size().y);
-        }
+        } else {
 
-        // scene view
-        glClearColor(0.9f, 0.9f, 0.9f, 1.0f);
+            // scene view
+            post_processing_texture->begin_draw();
+            glClearColor(0.9f, 0.9f, 0.9f, 1.0f);
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+            renderer.set_camera(camera);
+
+            default_shader.set_uniform_int("disable_fog", 0);
+            default_shader.set_uniform_vector3("camera_position",
+                                               camera.get_position());
+            gpu_instancing_shader.set_uniform_int("disable_fog", 0);
+            gpu_instancing_shader.set_uniform_vector3("camera_position",
+                                                      camera.get_position());
+            for (std::shared_ptr<Chunk> chunk : chunks) {
+                chunk->render(renderer, default_shader, gpu_instancing_shader);
+            }
+            post_processing_texture->end_draw();
+        }
+        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        renderer.set_camera(camera);
-
-        default_shader.set_uniform_int("disable_fog", 0);
-        default_shader.set_uniform_vector3("camera_position",
-                                           camera.get_position());
-        gpu_instancing_shader.set_uniform_int("disable_fog", 0);
-        gpu_instancing_shader.set_uniform_vector3("camera_position",
-                                                  camera.get_position());
-        for (std::shared_ptr<Chunk> chunk : chunks) {
-            chunk->render(renderer, default_shader, gpu_instancing_shader);
-        }
+        renderer.draw(screen_mesh, glm::mat4(1.0f), post_processing);
 
         ImGui::Render();
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());

@@ -11,8 +11,9 @@ struct GrassBuffer {
 
 class Chunk {
   public:
-    Chunk(const Mesh& grass_mesh, const Mesh& grass_mesh_low_poly,
-          Shader& generator, glm::ivec3 position, int grass_per_unit, int size);
+    Chunk(const Mesh& grass_mesh, Shader& generator, glm::ivec3 position,
+          int grass_per_unit, int size, float terrain_height,
+          float terrain_scale, uint64_t seed);
 
     void update(Shader& flow_field, Shader& displacement, float wind_direction,
                 float time);
@@ -26,7 +27,6 @@ class Chunk {
 
   private:
     const Mesh& m_grass_mesh;
-    const Mesh& m_grass_mesh_low_poly;
     Mesh m_ground;
     Mesh m_ground_low_poly;
 
